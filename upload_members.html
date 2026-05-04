@@ -293,7 +293,7 @@ async function loadInfo(){
   document.getElementById('stat-count').textContent = '...';
   document.getElementById('stat-date').textContent  = '...';
   try {
-    if(GAS_URL === 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'){
+    if(GAS_URL === 'YOUR_GAS_URL_HERE'){
       document.getElementById('stat-count').textContent = 'GAS 미연결';
       document.getElementById('stat-date').textContent  = '-';
       return;
@@ -421,7 +421,7 @@ async function upload(){
 
   showLoading(`${rows.length}세대 업로드 중...`);
   try {
-    if(GAS_URL === 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'){
+    if(GAS_URL === 'YOUR_GAS_URL_HERE'){
       showResult('ok',`[테스트] ${rows.length}세대 업로드 완료 (GAS 미연결 - 실제 저장 안됨)`);
       return;
     }
