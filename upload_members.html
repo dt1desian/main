@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>입주민 명단 관리 - 자연앤데시앙</title>
-<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -91,6 +91,15 @@ label.field-label{display:block;font-size:12px;font-weight:600;color:#6b7280;mar
 <body>
 
 <!-- 헤더 -->
+<div id="init-loading" style="position:fixed;inset:0;background:#f7f8fa;display:flex;align-items:center;justify-content:center;z-index:9999;">
+  <svg width="36" height="36" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="16" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+    <circle cx="20" cy="20" r="16" fill="none" stroke="#1f2937" stroke-width="4"
+      stroke-dasharray="60 40" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" from="0 20 20" to="360 20 20" dur="0.9s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+</div>
 <div class="header">
   <div class="header-left">
     <span class="header-logo">DESIAN</span>
@@ -137,6 +146,22 @@ label.field-label{display:block;font-size:12px;font-weight:600;color:#6b7280;mar
         </div>
       </div>
       <button class="btn-primary" style="width:auto;padding:8px 18px;font-size:13px;" onclick="loadInfo()">🔄 새로고침</button>
+    </div>
+
+    <!-- 다운로드 카드 -->
+    <div class="card">
+      <div class="card-title">📥 다운로드</div>
+      <div class="card-sub">서식 다운로드 또는 현재 등록된 명단을 엑셀로 저장합니다.</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn-primary" onclick="downloadTemplate()"
+          style="width:auto;padding:10px 20px;font-size:13px;background:#2563eb;">
+          📄 기본 서식 다운로드
+        </button>
+        <button class="btn-primary" onclick="downloadCurrent()"
+          style="width:auto;padding:10px 20px;font-size:13px;background:#16a34a;">
+          📊 현재 명단 다운로드
+        </button>
+      </div>
     </div>
 
     <!-- 안내 -->
@@ -215,7 +240,8 @@ label.field-label{display:block;font-size:12px;font-weight:600;color:#6b7280;mar
 
 <script>
 /* ── 설정 ─────────────────────────────── */
-const GAS_URL = 'YOUR_GAS_URL_HERE'; // ← Code.gs 배포 URL
+document.getElementById('init-loading').remove();
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'; // ← Code.gs 배포 URL
 const ADM_PW_LOCAL = 'admin1234';    // ← 로컬 폴백 비밀번호
 
 let adminPw  = '';
@@ -237,7 +263,7 @@ async function login(){
   showLoading('인증 중...');
   try {
     let ok = false;
-    if(GAS_URL !== 'YOUR_GAS_URL_HERE'){
+    if(GAS_URL !== 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'){
       const res = await gasPost({action:'adminLogin', pw});
       ok = res.ok && res.data;
     } else {
@@ -267,7 +293,7 @@ async function loadInfo(){
   document.getElementById('stat-count').textContent = '...';
   document.getElementById('stat-date').textContent  = '...';
   try {
-    if(GAS_URL === 'YOUR_GAS_URL_HERE'){
+    if(GAS_URL === 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'){
       document.getElementById('stat-count').textContent = 'GAS 미연결';
       document.getElementById('stat-date').textContent  = '-';
       return;
@@ -395,7 +421,7 @@ async function upload(){
 
   showLoading(`${rows.length}세대 업로드 중...`);
   try {
-    if(GAS_URL === 'YOUR_GAS_URL_HERE'){
+    if(GAS_URL === 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'){
       showResult('ok',`[테스트] ${rows.length}세대 업로드 완료 (GAS 미연결 - 실제 저장 안됨)`);
       return;
     }
@@ -416,6 +442,48 @@ function showResult(type, msg){
   el.style.display = 'block';
   el.className = 'result ' + type;
   el.textContent = msg;
+}
+
+/* ── 다운로드 ───────────────────────────── */
+function downloadTemplate(){
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['동','호','이름'],
+    ['101','101','홍길동'],
+    ['101','102','김영희'],
+    ['102','501','박민준'],
+  ]);
+  // 컬럼 너비
+  ws['!cols'] = [{wch:8},{wch:8},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, ws, '입주민명단');
+  XLSX.writeFile(wb, '입주민명단_기본서식.xlsx');
+}
+
+async function downloadCurrent(){
+  if(GAS_URL === 'YOUR_GAS_URL_HERE'){
+    alert('GAS URL이 설정되지 않았습니다.');
+    return;
+  }
+  showLoading('명단 불러오는 중...');
+  try {
+    const res = await gasPost({action:'getMembers', adminPw});
+    if(!res.ok || !res.data){
+      alert('명단을 불러올 수 없습니다: ' + (res.error||''));
+      return;
+    }
+    const rows  = res.data;
+    const today = new Date().toISOString().slice(0,10).replace(/-/g,'');
+    const wb    = XLSX.utils.book_new();
+    const ws    = XLSX.utils.aoa_to_sheet([
+      ['동','호','이름'],
+      ...rows.map(r=>[r.dong, r.ho, r.name])
+    ]);
+    ws['!cols'] = [{wch:8},{wch:8},{wch:12}];
+    XLSX.utils.book_append_sheet(wb, ws, '입주민명단');
+    XLSX.writeFile(wb, `입주민명단_${today}.xlsx`);
+  } catch(e){
+    alert('오류: ' + e.message);
+  } finally { hideLoading(); }
 }
 
 /* ── GAS 통신 ─────────────────────────── */
