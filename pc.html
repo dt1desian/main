@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>입주민 참여플랫폼</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700;800&display=swap&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;}
+body{background:#f7f8fa;font-family:'Noto Sans KR',sans-serif;color:#1f2937;}
+input,select,textarea,button{font-family:'Noto Sans KR',sans-serif;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}
+
+/* ─ 반응형 핵심 ─ */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%;}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;width:100%;}
+.admin-split{display:grid;grid-template-columns:1fr 1.1fr;gap:16px;width:100%;}
+.hide-mobile{display:block;}
+.show-mobile{display:none;}
+.scroll-x{display:flex;gap:6px;flex-wrap:wrap;}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;}
+.home-bottom{display:grid;grid-template-columns:1fr 1fr;gap:28px;width:100%;}
+.pad-main{padding:28px 20px;width:100%;box-sizing:border-box;}
+.stat-num{font-size:26px;}
+.detail-pad{padding:28px 32px;}
+.hero-pad{padding:28px 24px;}
+.hero-h{font-size:22px;}
+.hero-stat-num{font-size:20px;}
+
+@media(max-width:768px){
+  .grid-2{grid-template-columns:1fr;}
+  .grid-4{grid-template-columns:repeat(2,1fr);}
+  .grid-auto{grid-template-columns:1fr;}
+  .admin-split{grid-template-columns:1fr;}
+  .hide-mobile{display:none;}
+  .show-mobile{display:flex;}
+  .scroll-x{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+  .scroll-x::-webkit-scrollbar{height:0;}
+  .hero-grid{grid-template-columns:1fr;}
+  .home-bottom{grid-template-columns:1fr;}
+  .pad-main{padding:14px 12px;}
+  .stat-num{font-size:20px;}
+  .detail-pad{padding:18px 16px;}
+  .hero-pad{padding:20px 16px;}
+  .hero-h{font-size:18px;}
+  .hero-stat-num{font-size:17px;}
+  .btn-row-mobile{flex-direction:column;}
+  /* 모바일 건의사항 테이블 */
+  .board-table-header{display:none;}
+  .board-table-row{grid-template-columns:40px 1fr !important;}
+}
+@media(max-width:480px){
+  .grid-4{grid-template-columns:repeat(2,1fr);}
+  .hero-stat-num{font-size:15px;}
+  .stat-num{font-size:18px;}
+}
+
+/* ─ 공통 트랜지션 ─ */
+.c-card{transition:box-shadow .2s,transform .2s;}
+.c-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1)!important;}
+.btn-ol{transition:all .15s;}
+.btn-ol:hover{background:#2563eb!important;color:#fff!important;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;}
+button:active{opacity:.82;}
+
+/* ─ 모바일 드로어 ─ */
+.drawer{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:500;display:flex;flex-direction:column;}
+.drawer-inner{background:#fff;padding:0 0 24px;border-radius:0 0 20px 20px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="init-loading" style="position:fixed;inset:0;background:#f7f8fa;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px;">
+  <svg width="40" height="40" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="16" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+    <circle cx="20" cy="20" r="16" fill="none" stroke="#1f2937" stroke-width="4"
+      stroke-dasharray="60 40" stroke-linecap="round">
+      <animateTransform attributeName="transform" type="rotate" from="0 20 20" to="360 20 20" dur="0.9s" repeatCount="indefinite"/>
+    </circle>
+  </svg>
+  <div style="font-family:'Noto Sans KR',sans-serif;font-size:13px;color:#9ca3af;font-weight:500;">플랫폼 로딩 중...</div>
+</div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'; // ← 배포 후 웹앱 URL로 교체
+
+/* GAS API 호출 헬퍼 */
+async function gasGet(action) {
+  const r = await fetch(GAS_URL + '?action=' + action);
+  return r.json();
+}
+async function gasPost(body) {
+  const r = await fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  return r.json();
+}
+
+/* 입주민 인증 */
+async function verifyMember(dong, ho, name) {
+  if(GAS_URL==='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') return true; // URL 미설정 시 로컬 모드(검증 스킵)
+  try {
+    const res = await gasPost({action:'verifyMember', dong, ho, name});
+    return res.ok && res.data && res.data.verified;
+  } catch(e) {
+    return true; // 네트워크 오류 시 통과 (폴백)
+  }
+}
+
+
+
+</script>
+
+<script>
+var __defProp = Object.defineProperty;
+var __defProps = Object.defineProperties;
+var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
+var __getOwnPropSymbols = Object.getOwnPropertySymbols;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __spreadValues = (a, b) => {
+  for (var prop in b || (b = {}))
+    if (__hasOwnProp.call(b, prop))
+      __defNormalProp(a, prop, b[prop]);
+  if (__getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(b)) {
+      if (__propIsEnum.call(b, prop))
+        __defNormalProp(a, prop, b[prop]);
+    }
+  return a;
+};
+var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
+const { useState, useEffect, useCallback } = React;
+const BLUE = "#2563eb";
+const LBLUE = "#eff6ff";
+const DEF_CFG = {
+  title: "\uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8 \uC785\uC8FC\uBBFC \uCC38\uC5EC \uD50C\uB7AB\uD3FC",
+  sub: "\uC548\uAC74 \uC81C\uC548 \xB7 \uC815\uCC45 \uC790\uBB38 \xB7 \uAC74\uC758",
+  notice: "\uC548\uB155\uD558\uC138\uC694. \uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uC785\uB2C8\uB2E4. \uC8FC\uBBFC \uC5EC\uB7EC\uBD84\uC758 \uC801\uADF9\uC801\uC778 \uCC38\uC5EC\uB97C \uBD80\uD0C1\uB4DC\uB9BD\uB2C8\uB2E4.",
+  periodDays: 14,
+  minSigs: 30,
+  footerAptName: "1\uB3D9\uD0C4 \uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8",
+  footerAddr: "\uACBD\uAE30\uB3C4 OO\uC2DC OO\uAD6C \uB370\uC2DC\uC559\uB85C 123",
+  footerTel: "031-000-0000",
+  footerSite: "https://www.apti.co.kr/apti/",
+  footerEmail: "manager@desiang.co.kr"
+};
+const SAMPLE_AG = [
+  { id: "AGD-001", title: "\uC9C0\uD558\uC8FC\uCC28\uC7A5 CCTV \uCD94\uAC00 \uC124\uCE58", desc: "\uCD5C\uADFC \uC9C0\uD558\uC8FC\uCC28\uC7A5 \uB0B4 \uCC28\uB7C9 \uD30C\uC190 \uC0AC\uACE0\uAC00 2\uAC74 \uBC1C\uC0DD\uD558\uC600\uC2B5\uB2C8\uB2E4. B2\uCE35 \uC0AC\uAC01\uC9C0\uB300 \uAD6C\uC5ED\uC5D0 CCTV 2\uB300 \uCD94\uAC00 \uC124\uCE58\uB97C \uC694\uCCAD\uD569\uB2C8\uB2E4. \uAD00\uB828 \uACAC\uC801\uC11C\uB3C4 \uD655\uBCF4\uD558\uC600\uC73C\uBA70 \uC124\uCE58\uBE44 \uC57D 120\uB9CC\uC6D0 \uC218\uC900\uC785\uB2C8\uB2E4.", cat: "\uBCF4\uC548", submitter: { dong: "101", ho: "1502", name: "\uAE40\uBBFC\uD601", phone: "010-1234-5678" }, status: "active", approvedAt: "2025-04-01", endDate: "2025-05-31", sigs: [{ dong: "102", ho: "801", name: "\uC774\uC601\uC218", phone: "010-****-1111", date: "2025-04-03" }, { dong: "103", ho: "303", name: "\uBC15\uC9C0\uC740", phone: "010-****-2222", date: "2025-04-05" }], createdAt: "2025-04-01" },
+  { id: "AGD-002", title: "\uBD84\uB9AC\uC218\uAC70\uC7A5 \uC6B4\uC601\uC2DC\uAC04 \uC5F0\uC7A5 \uC694\uCCAD", desc: "\uD604\uC7AC \uC624\uC804 7\uC2DC~\uC624\uD6C4 8\uC2DC \uC6B4\uC601\uC73C\uB85C \uC9C1\uC7A5\uC778\uB4E4\uC774 \uC774\uC6A9\uD558\uAE30 \uB9E4\uC6B0 \uBD88\uD3B8\uD569\uB2C8\uB2E4. \uC624\uD6C4 10\uC2DC\uAE4C\uC9C0 \uC5F0\uC7A5 \uC6B4\uC601\uC744 \uC694\uCCAD\uD569\uB2C8\uB2E4.", cat: "\uCCAD\uC18C\xB7\uC704\uC0DD", submitter: { dong: "102", ho: "205", name: "\uC815\uC218\uBE48", phone: "010-5555-6666" }, status: "active", approvedAt: "2025-04-08", endDate: "2025-04-22", sigs: [], createdAt: "2025-04-08" },
+  { id: "AGD-003", title: "\uCE35\uAC04\uC18C\uC74C \uAD00\uB9AC \uADDC\uC815 \uC2E0\uC124", desc: "\uBC24 11\uC2DC \uC774\uD6C4 \uB6F0\uB294 \uC18C\uB9AC, \uC545\uAE30 \uC5F0\uC8FC \uB4F1\uC73C\uB85C \uC218\uBA74\uC744 \uBC29\uD574\uBC1B\uACE0 \uC788\uC2B5\uB2C8\uB2E4. \uCE35\uAC04\uC18C\uC74C \uC704\uBC18 \uC2DC \uACBD\uACE0\u2192\uACFC\uD0DC\uB8CC \uADDC\uC815\uC744 \uC2E0\uC124\uD574 \uC8FC\uC2ED\uC2DC\uC624.", cat: "\uC18C\uC74C", submitter: { dong: "103", ho: "1201", name: "\uC624\uC138\uC9C4", phone: "010-7777-8888" }, status: "passed", approvedAt: "2025-03-15", endDate: "2025-03-29", sigs: Array.from({ length: 53 }, (_, i) => ({ dong: String(101 + i % 4), ho: String(100 + i), name: "\uC11C\uBBFC\uC900", phone: "010-****-9999", date: "2025-03-20" })), createdAt: "2025-03-15" },
+  { id: "AGD-004", title: "\uC5B4\uB9B0\uC774 \uB180\uC774\uD130 \uC548\uC804 \uC810\uAC80 \uC8FC\uAE30 \uAC15\uD654", desc: "\uCD5C\uADFC \uB180\uC774\uAE30\uAD6C \uB3C4\uC0C9\uC774 \uBC97\uACA8\uC9C0\uACE0 \uBCFC\uD2B8\uAC00 \uB290\uC2A8\uD574\uC9C4 \uBD80\uBD84\uC774 \uBC1C\uACAC\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uC815\uAE30 \uC548\uC804\uC810\uAC80 \uC8FC\uAE30\uB97C \uC6D4 1\uD68C\uB85C \uB298\uB824\uC8FC\uC2DC\uAE30 \uBC14\uB78D\uB2C8\uB2E4.", cat: "\uC2DC\uC124\uAD00\uB9AC", submitter: { dong: "104", ho: "402", name: "\uD55C\uC9C0\uC218", phone: "010-9876-5432" }, status: "draft", approvedAt: "", endDate: "", sigs: [], createdAt: "2025-04-15" }
+];
+const SAMPLE_VT = [
+  { id: "VOT-001", title: "\uC5EC\uB984 \uC8FC\uBBFC \uC57C\uC678\uD589\uC0AC(\uBC14\uBCA0\uD050) \uAC1C\uCD5C \uCC2C\uBC18", desc: "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uC5D0\uC11C 7\uC6D4 \uC911 \uC544\uD30C\uD2B8 \uC57C\uC678 \uC8FC\uBBFC \uD654\uD569 \uD589\uC0AC \uAC1C\uCD5C\uB97C \uAC80\uD1A0 \uC911\uC785\uB2C8\uB2E4. \uC758\uACAC\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.", type: "\uCC2C\uBC18", options: ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"], startDate: "2025-04-01", endDate: "2025-05-31", status: "active", showResult: "always", votes: [{ dong: "101", ho: "201", choice: "\uCC2C\uC131", date: "2025-04-02" }, { dong: "102", ho: "501", choice: "\uCC2C\uC131", date: "2025-04-03" }, { dong: "103", ho: "302", choice: "\uBC18\uB300", date: "2025-04-04" }, { dong: "101", ho: "801", choice: "\uCC2C\uC131", date: "2025-04-05" }, { dong: "104", ho: "101", choice: "\uBCF4\uB958", date: "2025-04-06" }], createdAt: "2025-04-01" },
+  { id: "VOT-002", title: "\uC8FC\uCC28\uC7A5 \uC57C\uAC04 \uC870\uBA85 \uAD50\uCCB4 \uBC29\uC2DD \uC120\uD638\uB3C4 \uC870\uC0AC", desc: "\uC9C0\uD558\uC8FC\uCC28\uC7A5 \uC870\uBA85\uC744 \uAD50\uCCB4\uD560 \uC608\uC815\uC785\uB2C8\uB2E4. \uC120\uD638\uD558\uB294 \uBC29\uC2DD\uC744 \uC120\uD0DD\uD574 \uC8FC\uC138\uC694.", type: "\uAC1D\uAD00\uC2DD", options: ["LED \uC804\uAD6C \uAD50\uCCB4(\uC800\uBE44\uC6A9)", "\uC2A4\uB9C8\uD2B8 \uC13C\uC11C \uC870\uBA85(\uC911\uBE44\uC6A9)", "\uC804\uBA74 \uC2A4\uB9C8\uD2B8 \uC2DC\uC2A4\uD15C(\uACE0\uBE44\uC6A9)"], startDate: "2025-04-10", endDate: "2025-04-25", status: "active", showResult: "after", votes: [{ dong: "102", ho: "301", choice: "\uC2A4\uB9C8\uD2B8 \uC13C\uC11C \uC870\uBA85(\uC911\uBE44\uC6A9)", date: "2025-04-11" }, { dong: "103", ho: "101", choice: "LED \uC804\uAD6C \uAD50\uCCB4(\uC800\uBE44\uC6A9)", date: "2025-04-12" }], createdAt: "2025-04-10" }
+];
+const SAMPLE_BOARD = [
+  { id: "BRD-001", title: "\uC5D8\uB9AC\uBCA0\uC774\uD130 \uB0B4\uBD80 \uAC70\uC6B8 \uC124\uCE58 \uAC74\uC758", cat: "\uC2DC\uC124\uAD00\uB9AC", content: "\uC5D8\uB9AC\uBCA0\uC774\uD130 \uB0B4\uBD80\uC5D0 \uAC70\uC6B8\uC774 \uC5C6\uC5B4 \uBD88\uD3B8\uD569\uB2C8\uB2E4. \uD2B9\uD788 \uC774\uC0AC \uC2DC \uC9D0 \uD06C\uAE30\uB97C \uD655\uC778\uD558\uAE30 \uC5B4\uB835\uC2B5\uB2C8\uB2E4. \uC124\uCE58\uB97C \uAC74\uC758\uB4DC\uB9BD\uB2C8\uB2E4.", author: { dong: "102", ho: "501", name: "\uD64D\uAE38\uB3D9", phone: "010-****-1234" }, createdAt: "2025-04-10", status: "pending" },
+  { id: "BRD-002", title: "\uD0DD\uBC30 \uBCF4\uAD00\uD568 \uCD94\uAC00 \uC124\uCE58 \uC694\uCCAD", cat: "\uC2DC\uC124\uAD00\uB9AC", content: "\uD604\uC7AC \uD0DD\uBC30 \uBCF4\uAD00\uD568\uC774 \uBD80\uC871\uD558\uC5EC \uD0DD\uBC30\uAC00 \uBCF5\uB3C4\uC5D0 \uBC29\uCE58\uB418\uB294 \uACBD\uC6B0\uAC00 \uB9CE\uC2B5\uB2C8\uB2E4. \uB3D9\uB2F9 1\uB300\uC529 \uCD94\uAC00 \uC124\uCE58\uB97C \uC694\uCCAD\uD569\uB2C8\uB2E4.", author: { dong: "103", ho: "302", name: "\uAE40\uC601\uD76C", phone: "010-****-5678" }, createdAt: "2025-04-12", status: "answered" }
+];
+const maskF = (s) => (s || "")[0] + "\u25CB".repeat(Math.max((s || "").length - 1, 1));
+const maskDong = (s) => {
+  const t = s || "";
+  return t.length >= 2 ? t.slice(0, 2) + "\u25CB".repeat(Math.max(t.length - 2, 0)) : t;
+};
+const maskHo = (s) => "\u25CB".repeat(Math.min((s || "").length || 3, 4));
+const maskName = (s) => {
+  const c = (s || "")[0];
+  if (!c) return "";
+  const code = c.charCodeAt(0) - 44032;
+  if (code < 0 || code > 11171) return c;
+  const cho = ["\u3131", "\u3132", "\u3134", "\u3137", "\u3138", "\u3139", "\u3141", "\u3142", "\u3143", "\u3145", "\u3146", "\u3147", "\u3148", "\u3149", "\u314A", "\u314B", "\u314C", "\u314D", "\u314E"];
+  return cho[Math.floor(code / 588)] + "**";
+};
+const maskPh = (p) => (p || "").replace(/(\d{3})-(\d{4})-(\d{4})/, "$1-****-$3");
+const fmt = (d) => d ? d.replace(/-/g, ".") : "\uBBF8\uC124\uC815";
+const dLeft = (e) => e ? Math.ceil((new Date(e) - /* @__PURE__ */ new Date()) / 864e5) : null;
+const today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
+const addD = (d, n) => {
+  const r = new Date(d);
+  r.setDate(r.getDate() + n);
+  return r.toISOString().slice(0, 10);
+};
+const agSt = (a) => {
+  if (a.status === "draft") return { t: "\uC2B9\uC778 \uB300\uAE30", c: "#d97706", bg: "#fef3c7" };
+  if (a.status === "declined") return { t: "\uBC18\uB824", c: "#dc2626", bg: "#fee2e2" };
+  if (a.status === "passed") return { t: "\uAC00\uACB0", c: "#16a34a", bg: "#dcfce7" };
+  if (a.status === "rejected") return { t: "\uBD80\uACB0", c: "#dc2626", bg: "#fee2e2" };
+  if (a.status === "closed") return { t: "\uB9C8\uAC10", c: "#6b7280", bg: "#f3f4f6" };
+  const d = dLeft(a.endDate);
+  if (!a.endDate || d < 0) return { t: "\uAE30\uAC04\uC885\uB8CC", c: "#6b7280", bg: "#f3f4f6" };
+  return d <= 3 ? { t: `D-${d}`, c: "#ea580c", bg: "#fff7ed" } : { t: `D-${d}`, c: BLUE, bg: LBLUE };
+};
+const vtSt = (v) => {
+  if (v.status === "draft") return { t: "\uC900\uBE44\uC911", c: "#d97706", bg: "#fef3c7" };
+  if (v.status === "closed") return { t: "\uB9C8\uAC10", c: "#6b7280", bg: "#f3f4f6" };
+  const d = dLeft(v.endDate);
+  if (!v.endDate || d < 0) return { t: "\uAE30\uAC04\uC885\uB8CC", c: "#6b7280", bg: "#f3f4f6" };
+  return d <= 3 ? { t: `D-${d}`, c: "#ea580c", bg: "#fff7ed" } : { t: "\uC9C4\uD589\uC911", c: "#16a34a", bg: "#dcfce7" };
+};
+const canVote = (v) => {
+  var _a;
+  return v.status === "active" && !!v.endDate && ((_a = dLeft(v.endDate)) != null ? _a : -1) >= 0;
+};
+const isActiveAg = (a) => {
+  var _a;
+  return a.status === "active" && !!a.endDate && ((_a = dLeft(a.endDate)) != null ? _a : -1) >= 0;
+};
+const LS = {
+  ag: { get: () => {
+    try {
+      const r = localStorage.getItem("rp3_ag");
+      return r ? JSON.parse(r) : SAMPLE_AG;
+    } catch (e) {
+      return SAMPLE_AG;
+    }
+  }, set: (v) => localStorage.setItem("rp3_ag", JSON.stringify(v)) },
+  vt: { get: () => {
+    try {
+      const r = localStorage.getItem("rp3_vt");
+      return r ? JSON.parse(r) : SAMPLE_VT;
+    } catch (e) {
+      return SAMPLE_VT;
+    }
+  }, set: (v) => localStorage.setItem("rp3_vt", JSON.stringify(v)) },
+  board: { get: () => {
+    try {
+      const r = localStorage.getItem("rp3_board");
+      return r ? JSON.parse(r) : SAMPLE_BOARD;
+    } catch (e) {
+      return SAMPLE_BOARD;
+    }
+  }, set: (v) => localStorage.setItem("rp3_board", JSON.stringify(v)) },
+  cfg: { get: () => {
+    try {
+      const r = localStorage.getItem("rp5_cfg");
+      return r ? __spreadValues(__spreadValues({}, DEF_CFG), JSON.parse(r)) : DEF_CFG;
+    } catch (e) {
+      return DEF_CFG;
+    }
+  }, set: (v) => localStorage.setItem("rp5_cfg", JSON.stringify(v)) }
+};
+function useIsMobile() {
+  const [m, setM] = useState(window.innerWidth <= 768);
+  useEffect(() => {
+    const h = () => setM(window.innerWidth <= 768);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+  return m;
+}
+function App() {
+  const [page, setPage] = useState("home");
+  const [sub, setSub] = useState("list");
+  const [selId, setSelId] = useState(null);
+  const [ag, setAg] = useState(LS.ag.get);
+  const [board, setBoard] = useState(LS.board.get);
+  const [vt, setVt] = useState(LS.vt.get);
+  const [cfg, setCfg] = useState(LS.cfg.get);
+  const [toast, setToast] = useState(null);
+  const [adminOk, setAdminOk] = useState(false);
+  const saveCfgToGas = (newCfg) => {
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec")
+      gasPost({ action: "setCfg", cfg: newCfg, adminPw: "admin1234" }).catch(() => {
+      });
+  };
+  const [adminPw, setAdminPw] = useState("");
+  const [adminErr, setAdminErr] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showPolicy, setShowPolicy] = useState(false);
+  const [showModeSelect, setShowModeSelect] = useState(false);
+  const isMobile = useIsMobile();
+  useEffect(() => {
+    if (GAS_URL === "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") return;
+    setLoading(true);
+    gasGet("getAll").then((res) => {
+      if (res.ok && res.data) {
+        const d = res.data;
+        if (d.ag && d.ag.length) setAg(d.ag);
+        if (d.vt && d.vt.length) setVt(d.vt);
+        if (d.board && d.board.length) setBoard(d.board);
+        if (d.cfg && Object.keys(d.cfg).length) setCfg((p) => __spreadProps(__spreadValues(__spreadValues({}, p), d.cfg), {
+          periodDays: Number(d.cfg.periodDays || 14),
+          minSigs: Number(d.cfg.minSigs || 30)
+        }));
+      }
+    }).catch(() => {
+    }).finally(() => setLoading(false));
+  }, []);
+  useEffect(() => LS.ag.set(ag), [ag]);
+  useEffect(() => LS.board.set(board), [board]);
+  useEffect(() => LS.vt.set(vt), [vt]);
+  useEffect(() => LS.cfg.set(cfg), [cfg]);
+  const notify = (msg, type = "ok") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3e3);
+  };
+  const nav = (p, s = "list", id = null) => {
+    setPage(p);
+    setSub(s);
+    setSelId(id);
+    setMenuOpen(false);
+    window.scrollTo(0, 0);
+  };
+  const patchAg = (id, p) => {
+    setAg((prev) => prev.map((a) => a.id === id ? __spreadValues(__spreadValues({}, a), p) : a));
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "patchAg", id, patch: p, adminPw: "admin1234" }).catch(() => {
+    });
+  };
+  const addAg = (a) => {
+    setAg((p) => [a, ...p]);
+    notify("\uC548\uAC74\uC774 \uC811\uC218\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAD00\uB9AC\uC790 \uC2B9\uC778 \uD6C4 \uAC8C\uC2DC\uB429\uB2C8\uB2E4.");
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "addAg", data: a }).catch(() => {
+    });
+  };
+  const addAgSig = (id, sig) => {
+    setAg((prev) => prev.map((a) => a.id === id ? __spreadProps(__spreadValues({}, a), { sigs: [...a.sigs, sig] }) : a));
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "addAgSig", id, sig }).catch(() => {
+    });
+  };
+  const addBoard = (b) => {
+    setBoard((p) => [b, ...p]);
+    notify("\uAC74\uC758\uC0AC\uD56D\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "addBoard", data: b }).catch(() => {
+    });
+  };
+  const patchVt = (id, p) => {
+    setVt((prev) => prev.map((v) => v.id === id ? __spreadValues(__spreadValues({}, v), p) : v));
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "patchVt", id, patch: p, adminPw: "admin1234" }).catch(() => {
+    });
+  };
+  const addVt = (v) => {
+    setVt((p) => [v, ...p]);
+    notify("\uD22C\uD45C/\uC124\uBB38\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "addVt", data: v, adminPw: "admin1234" }).catch(() => {
+    });
+  };
+  const addVtE = (id, e) => {
+    setVt((prev) => prev.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: [...v.votes, e] }) : v));
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasPost({ action: "addVtVote", id, vote: e }).catch(() => {
+    });
+  };
+  const selAg = ag.find((a) => a.id === selId) || null;
+  const selVt = vt.find((v) => v.id === selId) || null;
+  return /* @__PURE__ */ React.createElement("div", { style: { minHeight: "100vh", background: "#f7f8fa", position: "relative", overflowX: "hidden", display: "flex", flexDirection: "column" } }, /* @__PURE__ */ React.createElement("div", { style: {
+    position: "fixed",
+    bottom: "20%",
+    right: "-30px",
+    transform: "rotate(-45deg)",
+    transformOrigin: "center center",
+    userSelect: "none",
+    pointerEvents: "none",
+    zIndex: 0,
+    opacity: 0.02
+  } }, /* @__PURE__ */ React.createElement("img", { src: "data:image/png;base64,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", width: "570", alt: "", style: { display: "block", mixBlendMode: "multiply", filter: "invert(1)" } })), /* @__PURE__ */ React.createElement(Header, { cfg, page, nav, adminOk, menuOpen, setMenuOpen, isMobile }), /* @__PURE__ */ React.createElement("div", { className: "pad-main", style: { maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 1, flex: 1 } }, page === "home" && /* @__PURE__ */ React.createElement(Home, { ag, vt, cfg, board, nav, isMobile }), page === "vote" && sub === "list" && /* @__PURE__ */ React.createElement(VoteList, { vt, nav, isMobile }), page === "vote" && sub === "detail" && selVt && /* @__PURE__ */ React.createElement(VoteDetail, { vt: selVt, onBack: () => nav("vote"), onVote: (id, e) => {
+    addVtE(id, e);
+    setVt((p) => p.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: [...v.votes, e] }) : v));
+  }, notify, isMobile }), page === "agenda" && sub === "list" && /* @__PURE__ */ React.createElement(AgendaList, { ag, cfg, nav, isMobile }), page === "agenda" && sub === "detail" && selAg && /* @__PURE__ */ React.createElement(AgendaDetail, { ag: selAg, cfg, onBack: () => nav("agenda"), onSign: (id, sig) => {
+    addAgSig(id, sig);
+    setAg((p) => p.map((a) => a.id === id ? __spreadProps(__spreadValues({}, a), { sigs: [...a.sigs, sig] }) : a));
+  }, notify, isMobile }), page === "board" && sub === "list" && /* @__PURE__ */ React.createElement(BoardList, { board, nav, isMobile }), page === "board" && sub === "detail" && /* @__PURE__ */ React.createElement(BoardDetail, { post: board.find((b) => b.id === selId), onBack: () => nav("board"), isMobile }), page === "board" && sub === "write" && /* @__PURE__ */ React.createElement(BoardWrite, { board, onAdd: addBoard, onBack: () => nav("board"), notify, isMobile }), page === "agenda" && sub === "submit" && /* @__PURE__ */ React.createElement(AgendaSubmit, { ag, onAdd: addAg, onBack: () => nav("agenda"), notify, isMobile }), page === "admin" && (adminOk ? /* @__PURE__ */ React.createElement(AdminPanel, { ag, vt, cfg, board, patchAg, patchVt, addVt, setCfg, onBack: () => nav("home"), notify, isMobile }) : /* @__PURE__ */ React.createElement(AdminLogin, { pw: adminPw, setPw: setAdminPw, err: adminErr, onLogin: () => {
+    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") {
+      gasPost({ action: "adminLogin", pw: adminPw }).then((res) => {
+        if (res.ok && res.data) {
+          setAdminOk(true);
+          setAdminErr("");
+        } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+      }).catch(() => {
+        if (adminPw === ADM_PW) {
+          setAdminOk(true);
+          setAdminErr("");
+        } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+      });
+    } else {
+      if (adminPw === ADM_PW) {
+        setAdminOk(true);
+        setAdminErr("");
+      } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+    }
+  } }))), /* @__PURE__ */ React.createElement(Footer, { onPolicy: () => setShowPolicy(true), isMobile, cfg, onAdminClick: (p) => {
+    if (p === "board") nav("board");
+    else if (p === "admin") nav("admin");
+  }, showModeSelect, setShowModeSelect }), showPolicy && /* @__PURE__ */ React.createElement(PolicyModal, { onClose: () => setShowPolicy(false) }), toast && /* @__PURE__ */ React.createElement(Toast, { msg: toast.msg, type: toast.type }));
+}
+function Header({ cfg, page, nav, adminOk, menuOpen, setMenuOpen, isMobile }) {
+  const navItems = [
+    { p: "vote", l: "\u{1F4CA} \uC790\uBB38\uB2E8" },
+    { p: "agenda", l: "\u{1F4CB} \uC548\uAC74 \uC81C\uC548" },
+    { p: "board", l: "\u{1F4EC} \uAC74\uC758\uC0AC\uD56D" }
+  ];
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("header", { style: { background: "#fff", borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, zIndex: 200 } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 1100, margin: "0 auto", padding: "0 16px", height: 52, display: "flex", alignItems: "center", justifyContent: "space-between" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }, onClick: () => nav("home") }, /* @__PURE__ */ React.createElement("div", { style: { width: 34, height: 34, borderRadius: 7, background: "#1f2937", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", padding: 2 } }, /* @__PURE__ */ React.createElement("img", { src: "data:image/png;base64,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", style: { width: "100%", height: "100%", objectFit: "contain", mixBlendMode: "screen", opacity: 0.9 } })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: isMobile ? 12 : 13, color: "#111827", letterSpacing: "-0.3px", lineHeight: 1 } }, cfg.title), !isMobile && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 1 } }, cfg.sub))), !isMobile && /* @__PURE__ */ React.createElement("nav", { style: { display: "flex", alignItems: "center", gap: 0 } }, [
+    { p: "vote", l: "\u{1F4CA} \uC790\uBB38\uB2E8" },
+    { p: "agenda", l: "\u{1F4CB} \uC548\uAC74 \uC81C\uC548" },
+    { p: "board", l: "\u{1F4EC} \uAC74\uC758\uC0AC\uD56D" }
+  ].map(({ p, l }) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: p,
+      onClick: () => nav(p),
+      style: {
+        padding: "8px 18px",
+        borderRadius: 0,
+        border: "none",
+        cursor: "pointer",
+        fontSize: 14,
+        fontWeight: page === p ? 700 : 500,
+        background: "transparent",
+        color: page === p ? BLUE : "#6b7280",
+        borderBottom: page === p ? `2px solid ${BLUE}` : "2px solid transparent",
+        whiteSpace: "nowrap"
+      }
+    },
+    l
+  ))), isMobile && /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setMenuOpen(!menuOpen),
+      style: { background: "none", border: "none", cursor: "pointer", padding: 8, display: "flex", flexDirection: "column", gap: 5 }
+    },
+    /* @__PURE__ */ React.createElement("span", { style: { display: "block", width: 22, height: 2, background: menuOpen ? "transparent" : "#374151", transition: "all .2s" } }),
+    /* @__PURE__ */ React.createElement("span", { style: { display: "block", width: 22, height: 2, background: "#374151", transform: menuOpen ? "rotate(45deg) translate(5px,5px)" : "none", transition: "all .2s" } }),
+    /* @__PURE__ */ React.createElement("span", { style: { display: "block", width: 22, height: 2, background: "#374151", transform: menuOpen ? "rotate(-45deg) translate(5px,-5px)" : "none", transition: "all .2s" } })
+  ))), isMobile && menuOpen && /* @__PURE__ */ React.createElement("div", { className: "drawer", onClick: () => setMenuOpen(false) }, /* @__PURE__ */ React.createElement("div", { className: "drawer-inner", onClick: (e) => e.stopPropagation() }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px 10px", borderBottom: "1px solid #f3f4f6" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, cfg.title), /* @__PURE__ */ React.createElement("button", { onClick: () => setMenuOpen(false), style: { background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af" } }, "\u2715")), navItems.map(({ p, l, admin }) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: p,
+      onClick: () => nav(p),
+      style: {
+        display: "block",
+        width: "100%",
+        textAlign: "left",
+        padding: "15px 20px",
+        border: "none",
+        background: page === p ? "#f9fafb" : "transparent",
+        borderLeft: page === p ? `3px solid ${BLUE}` : "3px solid transparent",
+        cursor: "pointer",
+        fontSize: 16,
+        fontWeight: page === p ? 700 : 400,
+        color: page === p ? admin ? "#92400e" : BLUE : "#374151"
+      }
+    },
+    l
+  )))));
+}
+function Home({ ag, vt, cfg, board, nav, isMobile }) {
+  const [sortAg, setSortAg] = useState("latest");
+  const [sortVt, setSortVt] = useState("latest");
+  const vtActive = vt.filter((v) => canVote(v)).length;
+  const agDraft = ag.filter((a) => a.status === "draft").length;
+  const agActive = ag.filter((a) => isActiveAg(a)).length;
+  const agPassed = ag.filter((a) => a.status === "passed").length;
+  const recentVt = [...vt.filter((v) => canVote(v))].sort((a, b) => sortVt === "latest" ? b.createdAt.localeCompare(a.createdAt) : b.votes.length - a.votes.length).slice(0, 3);
+  const recentAg = [...ag.filter((a) => isActiveAg(a))].sort((a, b) => sortAg === "latest" ? b.createdAt.localeCompare(a.createdAt) : b.sigs.length - a.sigs.length).slice(0, 3);
+  return /* @__PURE__ */ React.createElement("div", null, cfg.notice && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: "11px 14px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { color: BLUE, fontWeight: 700, fontSize: 12, flexShrink: 0, marginTop: 1 } }, "\uACF5\uC9C0"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, color: "#374151", lineHeight: 1.6 } }, cfg.notice)), /* @__PURE__ */ React.createElement("div", { style: { background: LBLUE, border: "1px solid #bfdbfe", borderRadius: 12, padding: isMobile ? "22px 18px" : "28px 32px", marginBottom: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginBottom: 20, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#1e3a8a", lineHeight: 1.35, letterSpacing: "-0.3px", marginBottom: 4 } }, "\uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559 \uC785\uC8FC\uBBFC \uCC38\uC5EC \uD50C\uB7AB\uD3FC"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 13, color: "#3b82f6", lineHeight: 1.6 } }, cfg.sub)), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => nav("agenda", "submit"),
+      style: { padding: "9px 20px", borderRadius: 8, border: "none", background: "#1f2937", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }
+    },
+    "+ \uC548\uAC74 \uC2E0\uCCAD"
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3,1fr)", gap: 10 } }, [
+    { icon: "\u{1F4CB}", title: "\uC548\uAC74 \uC81C\uC548", desc: "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uC5D0 \uC548\uAC74\uC744 \uC9C1\uC811 \uC0C1\uC815", stat: null, page: "agenda", isAgenda: true },
+    { icon: "\u{1F4CA}", title: "\uC815\uCC45 \uC790\uBB38", desc: "\uD22C\uD45C\xB7\uC124\uBB38\uC5D0 \uCC38\uC5EC\uD574 \uC815\uCC45 \uACB0\uC815\uC5D0 \uBAA9\uC18C\uB9AC\uB97C", stat: null, page: "vote", isVote: true },
+    { icon: "\u{1F4EC}", title: "\uAC74\uC758\uC0AC\uD56D", desc: "\uBE44\uACF5\uAC1C\uB85C \uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uC5D0 \uAC74\uC758\uC0AC\uD56D \uC804\uB2EC", stat: "\uCD1D " + (board || []).length + "\uAC74 \uC811\uC218", page: "board" }
+  ].map(({ icon, title, desc, stat, page, isAgenda, isVote }) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: page,
+      className: "c-card",
+      onClick: () => nav(page),
+      style: { background: "#fff", borderRadius: 10, border: "1px solid #dbeafe", padding: "16px 18px", cursor: "pointer" }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 22, marginBottom: 8 } }, icon),
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#1e40af", marginBottom: 4 } }, title),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#6b7280", lineHeight: 1.6, marginBottom: 10 } }, desc),
+    isAgenda ? /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 4, marginTop: 4 } }, [
+      { l: "\uAC80\uD1A0\uC911", v: agDraft, c: "#d97706", bg: "#fef3c7" },
+      { l: "\uC758\uACAC\uC218\uB834", v: agActive, c: BLUE, bg: LBLUE },
+      { l: "\uC644\uB8CC", v: ag.filter((a) => ["passed", "rejected", "closed"].includes(a.status)).length, c: "#16a34a", bg: "#dcfce7" }
+    ].map(({ l, v, c, bg }) => /* @__PURE__ */ React.createElement("div", { key: l, style: { textAlign: "center", background: bg, borderRadius: 6, padding: "5px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: c, lineHeight: 1 } }, v), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: c, marginTop: 2, opacity: 0.8 } }, l)))) : isVote ? /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 4, marginTop: 4 } }, [
+      { l: "\uC9C4\uD589\uC911", v: vt.filter((v) => canVote(v)).length, c: "#16a34a", bg: "#dcfce7" },
+      { l: "\uC900\uBE44\uC911", v: vt.filter((v) => v.status === "draft").length, c: "#d97706", bg: "#fef3c7" },
+      { l: "\uC885\uB8CC", v: vt.filter((v) => !canVote(v) && v.status !== "draft").length, c: "#6b7280", bg: "#f3f4f6" }
+    ].map(({ l, v, c, bg }) => /* @__PURE__ */ React.createElement("div", { key: l, style: { textAlign: "center", background: bg, borderRadius: 6, padding: "5px 4px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: c, lineHeight: 1 } }, v), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: c, marginTop: 2, opacity: 0.8 } }, l)))) : /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#93c5fd", fontWeight: 500 } }, stat)
+  )))), /* @__PURE__ */ React.createElement("div", { className: "home-bottom" }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottom: "2px solid #111827" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "\uC758\uACAC\uC218\uB834 \uC548\uAC74"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5 } }, ["\uCD5C\uC2E0\uC21C", "\uCC2C\uC131\uC21C"].map((s) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: s,
+      onClick: () => setSortAg(s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count"),
+      style: {
+        padding: "3px 9px",
+        borderRadius: 20,
+        border: `1px solid ${sortAg === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") ? "#111827" : "#d1d5db"}`,
+        cursor: "pointer",
+        fontSize: 11,
+        fontWeight: 600,
+        background: sortAg === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") ? "#111827" : "#fff",
+        color: sortAg === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") ? "#fff" : "#6b7280"
+      }
+    },
+    "\u2713 ",
+    s
+  )))), recentAg.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC758\uACAC\uC218\uB834 \uC911\uC778 \uC548\uAC74\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }) : recentAg.map((a) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: a.id,
+      className: "c-card",
+      onClick: () => nav("agenda", "detail", a.id),
+      style: { background: "#fff", borderRadius: 8, padding: "14px 16px", border: "1px solid #e5e7eb", marginBottom: 8, cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,.04)" }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 600, color: BLUE } }, "\u25CF \uC218\uB834\uC911"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, "\u270B ", a.sigs.length, "\uBA85")),
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 2, lineHeight: 1.4 } }, a.title),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "\uB9C8\uAC10 ", fmt(a.endDate))
+  )), /* @__PURE__ */ React.createElement(MoreBtn, { onClick: () => nav("agenda") })), /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottom: "2px solid #111827" } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "\uC9C4\uD589\uC911 \uC815\uCC45 \uC790\uBB38"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5 } }, ["\uCD5C\uC2E0\uC21C", "\uCC38\uC5EC\uC21C"].map((s) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: s,
+      onClick: () => setSortVt(s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count"),
+      style: {
+        padding: "3px 9px",
+        borderRadius: 20,
+        border: `1px solid ${sortVt === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") ? "#111827" : "#d1d5db"}`,
+        cursor: "pointer",
+        fontSize: 11,
+        fontWeight: 600,
+        background: sortVt === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") ? "#111827" : "#fff",
+        color: sortVt === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") ? "#fff" : "#6b7280"
+      }
+    },
+    "\u2713 ",
+    s
+  )))), recentVt.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC9C4\uD589\uC911\uC778 \uC790\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }) : recentVt.map((v) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: v.id,
+      className: "c-card",
+      onClick: () => nav("vote", "detail", v.id),
+      style: { background: "#fff", borderRadius: 8, padding: "14px 16px", border: "1px solid #e5e7eb", marginBottom: 8, cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,.04)" }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 6, alignItems: "center" } }, /* @__PURE__ */ React.createElement(Tag, { color: v.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: v.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, v.type), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 600, color: "#16a34a" } }, "\u25CF \uC9C4\uD589\uC911"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, v.votes.length, "\uBA85")),
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 2, lineHeight: 1.4 } }, v.title),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "\uB9C8\uAC10 ", fmt(v.endDate))
+  )), /* @__PURE__ */ React.createElement(MoreBtn, { onClick: () => nav("vote") }))));
+}
+function VoteList({ vt, nav, isMobile }) {
+  const [flt, setFlt] = useState("\uC804\uCCB4");
+  const [sort, setSort] = useState("latest");
+  const items = [...vt.filter((v) => flt === "\uC804\uCCB4" || flt === "\uC9C4\uD589\uC911" && canVote(v) || flt === "\uC885\uB8CC" && !canVote(v))].sort((a, b) => sort === "latest" ? b.createdAt.localeCompare(a.createdAt) : b.votes.length - a.votes.length);
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(PageHero, { icon: "\u{1F4CA}", title: "\uC815\uCC45 \uC790\uBB38", desc: "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uAC00 \uC8FC\uBBFC \uC5EC\uB7EC\uBD84\uC758 \uC758\uACAC\uC744 \uC9C1\uC811 \uBB3B\uACE0 \uC815\uCC45 \uACB0\uC815\uC5D0 \uBC18\uC601\uD569\uB2C8\uB2E4.", isMobile }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, ["\uC804\uCCB4", "\uC9C4\uD589\uC911", "\uC885\uB8CC"].map((f) => /* @__PURE__ */ React.createElement(FBtn, { key: f, active: flt === f, onClick: () => setFlt(f) }, f))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5, flexShrink: 0 } }, ["\uCD5C\uC2E0\uC21C", "\uCC38\uC5EC\uC21C"].map((s) => /* @__PURE__ */ React.createElement(SortBtn, { key: s, active: sort === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count"), onClick: () => setSort(s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") }, "\u2713 ", s)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 10 } }, "\uCD1D ", items.length, "\uAC74"), items.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uD574\uB2F9 \uC790\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }) : /* @__PURE__ */ React.createElement("div", { className: "grid-auto" }, items.map((v) => /* @__PURE__ */ React.createElement(VoteCard, { key: v.id, v, onClick: () => nav("vote", "detail", v.id) }))));
+}
+function VoteCard({ v, onClick }) {
+  const si = vtSt(v);
+  const total = v.votes.length;
+  const tally = v.options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: v.votes.filter((x) => x.choice === o).length }), {});
+  const showBar = v.showResult === "always" && total > 0;
+  return /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: "c-card",
+      onClick,
+      style: { background: "#fff", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb", cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,.05)" }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement(Tag, { color: v.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: v.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, v.type), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, total, "\uBA85")),
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 5, lineHeight: 1.4 } }, v.title),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6b7280", lineHeight: 1.5, marginBottom: 12 } }, v.desc.slice(0, 60), "\u2026"),
+    showBar && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10 } }, v.options.map((o) => {
+      const cnt = tally[o] || 0, pct = total > 0 ? Math.round(cnt / total * 100) : 0;
+      return /* @__PURE__ */ React.createElement("div", { key: o, style: { marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#374151", marginBottom: 2 } }, /* @__PURE__ */ React.createElement("span", null, o), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, pct, "%")), /* @__PURE__ */ React.createElement("div", { style: { height: 4, background: "#f3f4f6", borderRadius: 2, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: BLUE, borderRadius: 2 } })));
+    })),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", borderTop: "1px solid #f3f4f6", paddingTop: 8 } }, "\uB9C8\uAC10 ", fmt(v.endDate))
+  );
+}
+function VoteDetail({ vt, onBack, onVote, notify, isMobile }) {
+  const [showP, setShowP] = useState(false);
+  const [showF, setShowF] = useState(false);
+  const [done, setDone] = useState(false);
+  const si = vtSt(vt);
+  const ok = canVote(vt);
+  const total = vt.votes.length;
+  const tally = vt.options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: vt.votes.filter((x) => x.choice === o).length }), {});
+  const showRes = vt.showResult === "always" || vt.showResult === "after" && !ok;
+  const maxCnt = Math.max(...Object.values(tally), 1);
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 680, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), showP && /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uD22C\uD45C\xB7\uC124\uBB38 \uCC38\uC5EC", onOk: () => {
+    setShowP(false);
+    setShowF(true);
+  }, onCancel: () => setShowP(false) }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Tag, { color: vt.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: vt.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, vt.type), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, vt.id)), /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, vt.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18 } }, "\u{1F4C5} ", fmt(vt.startDate), " ~ ", fmt(vt.endDate), "\xA0\xB7\xA0\u270B ", total, "\uBA85 \uCC38\uC5EC"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 24, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: `3px solid ${BLUE}` } }, vt.desc), showRes && total > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, "\uC9D1\uACC4 \uACB0\uACFC"), vt.options.map((o) => {
+    const cnt = tally[o] || 0, pct = total > 0 ? Math.round(cnt / total * 100) : 0;
+    const isTop = cnt === maxCnt && cnt > 0;
+    return /* @__PURE__ */ React.createElement("div", { key: o, style: { marginBottom: 10, padding: "11px 14px", background: isTop ? LBLUE : "#f9fafb", borderRadius: 8, border: `1px solid ${isTop ? "#bfdbfe" : "#e5e7eb"}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 7 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: isTop ? 700 : 400, fontSize: 14, color: isTop ? BLUE : "#374151" } }, isTop ? "1\uC704  " : "", o), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 14, color: isTop ? BLUE : "#6b7280" } }, cnt, "\uBA85 (", pct, "%)")), /* @__PURE__ */ React.createElement("div", { style: { height: 5, background: "rgba(0,0,0,.06)", borderRadius: 3, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: isTop ? BLUE : "#d1d5db", borderRadius: 3 } })));
+  })), vt.showResult === "after" && ok && /* @__PURE__ */ React.createElement(InfoBox, { msg: "\uD22C\uD45C \uACB0\uACFC\uB294 \uC758\uACAC\uC218\uB834 \uAE30\uAC04 \uC885\uB8CC \uD6C4 \uACF5\uAC1C\uB429\uB2C8\uB2E4." }), ok && !showF && !done && /* @__PURE__ */ React.createElement(PBtn, { onClick: () => setShowP(true) }, "\uC758\uACAC \uC120\uD0DD\uD558\uAE30 \u2192"), done && /* @__PURE__ */ React.createElement(SuccessBox, { msg: "\uC758\uACAC\uC774 \uC815\uC0C1\uC801\uC73C\uB85C \uC81C\uCD9C\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAC10\uC0AC\uD569\uB2C8\uB2E4." }), !ok && vt.status === "active" && /* @__PURE__ */ React.createElement(WarnBox, { msg: "\uC758\uACAC\uC218\uB834 \uAE30\uAC04\uC774 \uC885\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4." }), showF && /* @__PURE__ */ React.createElement(VoteForm, { vt, onSubmit: (e) => {
+    onVote(vt.id, e);
+    setShowF(false);
+    setDone(true);
+    notify("\uC758\uACAC\uC774 \uC81C\uCD9C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  }, onCancel: () => setShowF(false), notify, isMobile })));
+}
+function VoteForm({ vt, onSubmit, onCancel, notify, isMobile }) {
+  const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "", choice: "" });
+  const [verifying, setVerifying] = useState(false);
+  const submit = async () => {
+    if (!f.dong || !f.ho || !f.name) {
+      notify("\uB3D9\uD638\uC218\uC640 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    if (!f.choice) {
+      notify("\uC758\uACAC \uD56D\uBAA9\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    if (vt.votes.find((v) => v.dong === f.dong && v.ho === f.ho)) {
+      notify("\uC774\uBBF8 \uC758\uACAC\uC744 \uC81C\uCD9C\uD55C \uC138\uB300\uC785\uB2C8\uB2E4.", "err");
+      return;
+    }
+    setVerifying(true);
+    const ok = await verifyMember(f.dong, f.ho, f.name);
+    setVerifying(false);
+    if (!ok) {
+      notify("\uC785\uC8FC\uBBFC \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB3D9\xB7\uD638\uC218\xB7\uC774\uB984\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    onSubmit({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), choice: f.choice, date: today() });
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uC758\uACAC \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC758\uACAC \uC120\uD0DD" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 } }, vt.options.map((o) => /* @__PURE__ */ React.createElement(
+    "label",
+    {
+      key: o,
+      onClick: () => setF((p) => __spreadProps(__spreadValues({}, p), { choice: o })),
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 14px",
+        borderRadius: 8,
+        border: `1.5px solid ${f.choice === o ? BLUE : "#e5e7eb"}`,
+        background: f.choice === o ? LBLUE : "#fff",
+        cursor: "pointer",
+        fontWeight: f.choice === o ? 600 : 400,
+        color: f.choice === o ? BLUE : "#374151",
+        minHeight: 44
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { width: 16, height: 16, borderRadius: "50%", border: `2px solid ${f.choice === o ? BLUE : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, f.choice === o && /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: BLUE } })),
+    o
+  )))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 16 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
+}
+function AgendaList({ ag, cfg, nav, isMobile }) {
+  const [cat, setCat] = useState("\uC804\uCCB4");
+  const [st, setSt] = useState("\uC804\uCCB4");
+  const [sort, setSort] = useState("latest");
+  const filtered = [...ag.filter((a) => {
+    const cOk = cat === "\uC804\uCCB4" || a.cat === cat;
+    const sOk = st === "\uC804\uCCB4" || st === "\uAC80\uD1A0\uC911" && a.status === "draft" || st === "\uC758\uACAC\uC218\uB834" && isActiveAg(a) || st === "\uC644\uB8CC" && ["passed", "rejected", "closed"].includes(a.status);
+    return cOk && sOk;
+  })].sort((a, b) => sort === "latest" ? b.createdAt.localeCompare(a.createdAt) : b.sigs.length - a.sigs.length);
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(PageHero, { icon: "\u{1F4CB}", title: "\uC548\uAC74 \uC81C\uC548", desc: "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uC5D0 \uC0C1\uC815\uD560 \uC548\uAC74\uC744 \uC81C\uC548\uD558\uACE0 \uC774\uC6C3\uC758 \uCC2C\uC131\uC744 \uBAA8\uC544\uBCF4\uC138\uC694.", isMobile }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => nav("agenda", "submit"),
+      style: { padding: "9px 18px", borderRadius: 8, border: "none", background: "#1f2937", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, minHeight: 40 }
+    },
+    "+ \uC548\uAC74 \uC2E0\uCCAD"
+  )), /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 8, padding: "10px 14px", marginBottom: 12 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#9ca3af", fontWeight: 600, display: "block", marginBottom: 6 } }, "\uBD84\uC57C"), /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, ["\uC804\uCCB4", ...CATS].map((c) => /* @__PURE__ */ React.createElement(FBtn, { key: c, active: cat === c, onClick: () => setCat(c), small: true }, c)))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, gap: 8, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, ["\uC804\uCCB4", "\uAC80\uD1A0\uC911", "\uC758\uACAC\uC218\uB834", "\uC644\uB8CC"].map((s) => /* @__PURE__ */ React.createElement(FBtn, { key: s, active: st === s, onClick: () => setSt(s) }, s))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 5, flexShrink: 0 } }, ["\uCD5C\uC2E0\uC21C", "\uCC2C\uC131\uC21C"].map((s) => /* @__PURE__ */ React.createElement(SortBtn, { key: s, active: sort === (s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count"), onClick: () => setSort(s === "\uCD5C\uC2E0\uC21C" ? "latest" : "count") }, "\u2713 ", s)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 10 } }, "\uCD1D ", filtered.length, "\uAC74"), filtered.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uD574\uB2F9 \uC548\uAC74\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }) : /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, filtered.map((a) => /* @__PURE__ */ React.createElement(AgendaRow, { key: a.id, a, cfg, onClick: () => nav("agenda", "detail", a.id), isMobile }))));
+}
+function AgendaRow({ a, cfg, onClick, isMobile }) {
+  const si = agSt(a);
+  const isDraft = a.status === "draft";
+  const total = a.sigs.length, max = cfg.minSigs || 1;
+  const p = Math.min(100, Math.round(total / max * 100));
+  const descShow = isDraft ? a.desc.slice(0, Math.max(1, Math.floor(a.desc.length * 0.08))) : a.desc.slice(0, 70);
+  return /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      className: "c-card",
+      onClick,
+      style: {
+        background: "#fff",
+        borderRadius: 10,
+        padding: "16px",
+        border: `1px solid ${isDraft ? "#fde68a" : "#e5e7eb"}`,
+        cursor: "pointer",
+        boxShadow: "0 1px 4px rgba(0,0,0,.04)",
+        display: "flex",
+        gap: 12,
+        alignItems: "flex-start"
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { flex: 1, minWidth: 0 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 7, alignItems: "center", flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), !isMobile && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#9ca3af", marginLeft: "auto" } }, "\u{1F4CD} ", maskDong(a.submitter.dong), "\uB3D9 ", maskHo(a.submitter.ho), "\uD638 ", maskName(a.submitter.name))), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3, lineHeight: 1.4 } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { position: "relative", overflow: "hidden", maxHeight: 34 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#6b7280", lineHeight: 1.5 } }, descShow, "\u2026"), isDraft && /* @__PURE__ */ React.createElement("div", { style: { position: "absolute", inset: 0, backdropFilter: "blur(5px)", background: "linear-gradient(90deg,transparent,rgba(255,255,255,.92) 55%)", display: "flex", alignItems: "center", justifyContent: "flex-end" } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#92400e", background: "#fef9c3", borderRadius: 4, padding: "1px 7px", fontWeight: 600, border: "1px solid #fde68a", whiteSpace: "nowrap" } }, "\uC2B9\uC778 \uB300\uAE30")))),
+    !isDraft && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", flexShrink: 0, minWidth: isMobile ? 60 : 72 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: p >= 100 ? "#16a34a" : BLUE, lineHeight: 1 } }, total), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 1 } }, "/", max, "\uBA85"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, height: 4, background: "#f3f4f6", borderRadius: 2, overflow: "hidden", width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${p}%`, background: p >= 100 ? "#16a34a" : BLUE, borderRadius: 2 } })), !isMobile && a.endDate && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 3 } }, "~", fmt(a.endDate)))
+  );
+}
+function AgendaDetail({ ag, cfg, onBack, onSign, notify, isMobile }) {
+  const [showP, setShowP] = useState(false);
+  const [showF, setShowF] = useState(false);
+  const si = agSt(ag);
+  const canSign = isActiveAg(ag);
+  const isDraft = ag.status === "draft";
+  const total = ag.sigs.length, max = cfg.minSigs || 1;
+  const p = Math.min(100, Math.round(total / max * 100));
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 680, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), showP && /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uC548\uAC74 \uCC2C\uC131", onOk: () => {
+    setShowP(false);
+    setShowF(true);
+  }, onCancel: () => setShowP(false) }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(ag.cat).color, bg: catTag(ag.cat).background }, ag.cat), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, ag.id)), /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, ag.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18, display: "flex", gap: 12, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F464} ", maskDong(ag.submitter.dong), "\uB3D9 ", maskHo(ag.submitter.ho), "\uD638 ", maskName(ag.submitter.name)), ag.endDate ? /* @__PURE__ */ React.createElement("span", null, "\u{1F4C5} ", fmt(ag.approvedAt), " ~ ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, fmt(ag.endDate))) : /* @__PURE__ */ React.createElement("span", { style: { color: "#d97706" } }, "\u{1F4C5} \uC2B9\uC778 \uB300\uAE30\uC911")), isDraft ? /* @__PURE__ */ React.createElement(WarnBox, { msg: "\u{1F512} \uAD00\uB9AC\uC790 \uC2B9\uC778 \uB300\uAE30\uC911\uC785\uB2C8\uB2E4. \uC2B9\uC778 \uC644\uB8CC \uD6C4 \uC804\uCCB4 \uB0B4\uC6A9 \uBC0F \uCC2C\uC131 \uC81C\uCD9C\uC774 \uAC00\uB2A5\uD569\uB2C8\uB2E4." }) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 22, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, ag.desc), cfg.minSigs > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#f9fafb", borderRadius: 8, padding: "14px 18px", marginBottom: 22 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600, color: "#374151" } }, "\uCC2C\uC131 \uD604\uD669"), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, color: p >= 100 ? "#16a34a" : BLUE } }, total, "\uBA85 / ", max, "\uBA85 (", p, "%)")), /* @__PURE__ */ React.createElement("div", { style: { height: 7, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${p}%`, background: p >= 100 ? "#16a34a" : BLUE, borderRadius: 4 } }))), canSign && !showF && /* @__PURE__ */ React.createElement(PBtn, { onClick: () => setShowP(true) }, "\u270B \uC774 \uC548\uAC74\uC5D0 \uCC2C\uC131\uD569\uB2C8\uB2E4"), !canSign && ag.status === "active" && /* @__PURE__ */ React.createElement(WarnBox, { msg: "\uC758\uACAC\uC218\uB834 \uAE30\uAC04\uC774 \uC885\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4." }), showF && /* @__PURE__ */ React.createElement(AgSignForm, { existing: ag.sigs, onSign: (sig) => {
+    onSign(ag.id, sig);
+    setShowF(false);
+    notify("\uCC2C\uC131 \uC758\uACAC\uC774 \uC81C\uCD9C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  }, onCancel: () => setShowF(false), notify, isMobile }))));
+}
+function AgSignForm({ existing, onSign, onCancel, notify, isMobile }) {
+  const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "" });
+  const [verifying, setVerifying] = useState(false);
+  const submit = async () => {
+    if (!f.dong || !f.ho || !f.name) {
+      notify("\uB3D9\uD638\uC218\uC640 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    if (existing.find((s) => s.dong === f.dong && s.ho === f.ho)) {
+      notify("\uC774\uBBF8 \uC758\uACAC\uC744 \uC81C\uCD9C\uD55C \uC138\uB300\uC785\uB2C8\uB2E4.", "err");
+      return;
+    }
+    setVerifying(true);
+    const ok = await verifyMember(f.dong, f.ho, f.name);
+    setVerifying(false);
+    if (!ok) {
+      notify("\uC785\uC8FC\uBBFC \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB3D9\xB7\uD638\uC218\xB7\uC774\uB984\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    onSign({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), date: today() });
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uCC2C\uC131 \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
+}
+function AgendaSubmit({ ag, onAdd, onBack, notify, isMobile }) {
+  const [step, setStep] = useState("privacy");
+  const [f, setF] = useState({ title: "", desc: "", cat: "", dong: "", ho: "", name: "", phone: "" });
+  const [err, setErr] = useState({});
+  if (step === "privacy") return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uC548\uAC74 \uC2E0\uCCAD", onOk: () => setStep("form"), onCancel: onBack, inline: true }));
+  const validate = () => {
+    const e = {};
+    if (!f.title.trim()) e.title = "\uC785\uB825\uD558\uC138\uC694.";
+    if (!f.desc.trim()) e.desc = "\uC785\uB825\uD558\uC138\uC694.";
+    if (!f.cat) e.cat = "\uC120\uD0DD\uD558\uC138\uC694.";
+    if (!f.dong) e.dong = "\uD544\uC218";
+    if (!f.ho) e.ho = "\uD544\uC218";
+    if (!f.name) e.name = "\uD544\uC218";
+    setErr(e);
+    return Object.keys(e).length === 0;
+  };
+  const submit = () => {
+    if (!validate()) return;
+    const id = `AGD-${String(ag.length + 1).padStart(3, "0")}`;
+    onAdd({ id, title: f.title, desc: f.desc, cat: f.cat, submitter: { dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone) }, status: "draft", approvedAt: "", endDate: "", sigs: [], createdAt: today() });
+    onBack();
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uC548\uAC74 \uC2E0\uCCAD"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uAD00\uB9AC\uC790 \uC2B9\uC778 \uD6C4 \uACF5\uAC1C\uB429\uB2C8\uB2E4. \uAC1C\uC778\uC815\uBCF4\uB294 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uC989\uC2DC \uD3D0\uAE30\uB429\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uC548\uAC74 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC548\uAC74 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.desc }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 100, resize: "vertical" }), placeholder: "\uC548\uAC74 \uBC30\uACBD, \uD604\uD669, \uC694\uAD6C\uC0AC\uD56D\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.desc, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC2E0\uCCAD\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790 \uC5F4\uB78C \xB7 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uC548\uAC74 \uC811\uC218\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
+}
+function PrivacyModal({ purpose, onOk, onCancel, inline }) {
+  const [agreed, setAgreed] = useState(false);
+  const box = /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h3", { style: { color: "#111827", marginBottom: 18, fontSize: 17, fontWeight: 800 } }, "\uAC1C\uC778\uC815\uBCF4 \uC218\uC9D1\xB7\uC774\uC6A9 \uB3D9\uC758"), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 360 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f9fafb", borderBottom: "1px solid #e5e7eb" } }, ["\uC218\uC9D1 \uD56D\uBAA9", "\uC218\uC9D1 \uBAA9\uC801", "\uBCF4\uC720 \uBC0F \uD3D0\uAE30"].map((h) => /* @__PURE__ */ React.createElement("th", { key: h, style: { padding: "9px 12px", textAlign: "left", color: "#374151", fontWeight: 700, whiteSpace: "nowrap" } }, h)))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: tdS }, "\uB3D9\xB7\uD638\uC218, \uC774\uB984, \uC804\uD654\uBC88\uD638"), /* @__PURE__ */ React.createElement("td", { style: tdS }, purpose, " \uBCF8\uC778 \uD655\uC778 \uBC0F \uC911\uBCF5 \uBC29\uC9C0"), /* @__PURE__ */ React.createElement("td", { style: tdS }, "\uBAA9\uC801 \uB2EC\uC131 \uD6C4 ", /* @__PURE__ */ React.createElement("b", null, "\uC989\uC2DC \uD3D0\uAE30")))))), /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "11px 14px", fontSize: 13, color: "#92400e", marginBottom: 18, lineHeight: 1.7 } }, "\u203B \uC704 \uC815\uBCF4\uB294 \uBAA9\uC801 \uC678 \uC6A9\uB3C4\uB85C \uC0AC\uC6A9\uB418\uC9C0 \uC54A\uC73C\uBA70, \uBAA9\uC801 \uB2EC\uC131 \uC2DC \uC9C0\uCCB4\uC5C6\uC774 \uD30C\uAE30\uB429\uB2C8\uB2E4.", /* @__PURE__ */ React.createElement("br", null), "\u203B \uB3D9\uC758\uB97C \uAC70\uBD80\uD560 \uAD8C\uB9AC\uAC00 \uC788\uC73C\uB098 \uAC70\uBD80 \uC2DC ", purpose, "\uC774(\uAC00) \uBD88\uAC00\uD569\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginBottom: 18, padding: "12px 14px", background: "#f9fafb", borderRadius: 8, border: `1.5px solid ${agreed ? BLUE : "#e5e7eb"}`, minHeight: 48 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: agreed, onChange: (e) => setAgreed(e.target.checked), style: { width: 18, height: 18, accentColor: BLUE, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: agreed ? BLUE : "#374151" } }, "\uC704 \uAC1C\uC778\uC815\uBCF4 \uC218\uC9D1\xB7\uC774\uC6A9\uC5D0 \uB3D9\uC758\uD569\uB2C8\uB2E4 (\uD544\uC218)")), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: () => agreed && onOk(), style: { opacity: agreed ? 1 : 0.4 } }, "\uB3D9\uC758\uD558\uACE0 \uACC4\uC18D"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
+  if (inline) return box;
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 400, padding: "16px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 580, width: "100%" } }, box));
+}
+const tdS = { padding: "9px 12px", borderBottom: "1px solid #f3f4f6", color: "#6b7280", verticalAlign: "top", lineHeight: 1.6 };
+const BOARD_CATS = ["\uC2DC\uC124\uAD00\uB9AC", "\uC18C\uC74C", "\uCCAD\uC18C\xB7\uC704\uC0DD", "\uC8FC\uCC28", "\uBCF4\uC548", "\uAD00\uB9AC\uBE44", "\uAE30\uD0C0"];
+function BoardList({ board, nav, isMobile }) {
+  const maskTitle = (t) => t.length > 5 ? t.slice(0, 5) + "*".repeat(Math.min(t.length - 5, 5)) : t;
+  return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(PageHero, { icon: "\u{1F4EC}", title: "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758 \uAC74\uC758\uC0AC\uD56D", desc: "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uC5D0 \uAC74\uC758\uC0AC\uD56D\uC744 \uBE44\uACF5\uAC1C\uB85C \uC804\uB2EC\uD569\uB2C8\uB2E4. \uC791\uC131\uC790 \uBCF8\uC778\uB9CC \uB0B4\uC6A9\uC744 \uD655\uC778\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.", isMobile }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => nav("board", "write"),
+      style: { padding: "9px 18px", borderRadius: 8, border: "none", background: "#1f2937", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, minHeight: 40 }
+    },
+    "+ \uAC74\uC758\uD558\uAE30"
+  )), /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#92400e", marginBottom: 16, lineHeight: 1.6 } }, "\u{1F512} \uAC74\uC758\uC0AC\uD56D\uC740 ", /* @__PURE__ */ React.createElement("b", null, "\uC791\uC131\uC790 \uBCF8\uC778\uB9CC"), " \uB0B4\uC6A9\uC744 \uC5F4\uB78C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4. \uAD00\uB9AC\uC790\uB294 \uC804\uCCB4 \uB0B4\uC6A9\uC744 \uD655\uC778\uD558\uACE0 \uB2F5\uBCC0\uD569\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 10 } }, "\uCD1D ", board.length, "\uAC74"), board.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uB4F1\uB85D\uB41C \uAC74\uC758\uC0AC\uD56D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }) : /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { className: "board-table-header", style: { display: "grid", gridTemplateColumns: "60px 1fr 120px 70px", gap: 0, padding: "10px 16px", background: "#f9fafb", borderBottom: "1px solid #e5e7eb", fontSize: 12, fontWeight: 700, color: "#6b7280" } }, /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center" } }, "\uBC88\uD638"), /* @__PURE__ */ React.createElement("span", null, "\uC81C\uBAA9"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center" } }, "\uC791\uC131\uC790"), /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center" } }, "\uB0A0\uC9DC")), board.map((b, i) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: b.id,
+      onClick: () => nav("board", "detail", b.id),
+      style: {
+        display: "grid",
+        gridTemplateColumns: "60px 1fr 120px 70px",
+        gap: 0,
+        padding: "12px 16px",
+        borderBottom: "1px solid #f3f4f6",
+        cursor: "pointer",
+        transition: "background .15s"
+      },
+      onMouseEnter: (e) => e.currentTarget.style.background = "#f9fafb",
+      onMouseLeave: (e) => e.currentTarget.style.background = "transparent"
+    },
+    /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center", fontSize: 13, color: "#9ca3af" } }, board.length - i),
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: "#111827" } }, maskTitle(b.title)), b.status === "answered" && /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#16a34a", background: "#dcfce7", borderRadius: 4, padding: "1px 6px", fontWeight: 700, flexShrink: 0 } }, "\uB2F5\uBCC0\uC644\uB8CC"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#9ca3af", marginLeft: "auto", flexShrink: 0 } }, "\u{1F512}")),
+    /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center", fontSize: 12, color: "#6b7280" } }, maskDong(b.author.dong), "\uB3D9 ", maskHo(b.author.ho), "\uD638 ", maskName(b.author.name)),
+    /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center", fontSize: 11, color: "#9ca3af" } }, b.createdAt.slice(5))
+  ))));
+}
+function BoardDetail({ post, onBack, isMobile }) {
+  const [verified, setVerified] = useState(false);
+  const [f, setF] = useState({ dong: "", ho: "", name: "" });
+  const [err, setErr] = useState("");
+  if (!post) return /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uAC8C\uC2DC\uBB3C\uC744 \uCC3E\uC744 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4." }));
+  const [verifying, setVerifying] = useState(false);
+  const verify = async () => {
+    setVerifying(true);
+    const memberOk = await verifyMember(f.dong, f.ho, f.name);
+    setVerifying(false);
+    if (!memberOk) {
+      setErr("\uC785\uC8FC\uBBFC \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+      return;
+    }
+    if (f.dong === post.author.dong && f.ho === post.author.ho && f.name === post.author.name) {
+      setVerified(true);
+      setErr("");
+    } else {
+      setErr("\uC791\uC131\uC790 \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+    }
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 700, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Tag, { color: "#374151", bg: "#f3f4f6" }, post.cat), post.status === "answered" && /* @__PURE__ */ React.createElement(Tag, { color: "#16a34a", bg: "#dcfce7" }, "\uB2F5\uBCC0\uC644\uB8CC"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#9ca3af", marginLeft: "auto" } }, post.id)), /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 18 : 20, fontWeight: 800, color: "#111827", marginBottom: 10 } }, post.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20, display: "flex", gap: 16 } }, /* @__PURE__ */ React.createElement("span", null, "\u{1F4CD} ", maskDong(post.author.dong), "\uB3D9 ", maskHo(post.author.ho), "\uD638"), /* @__PURE__ */ React.createElement("span", null, "\u{1F4C5} ", post.createdAt)), !verified ? /* @__PURE__ */ React.createElement("div", { style: { background: "#f9fafb", borderRadius: 10, padding: "24px", border: "1px solid #e5e7eb", textAlign: "center" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 12 } }, "\u{1F512}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 } }, "\uBE44\uACF5\uAC1C \uAC8C\uC2DC\uBB3C"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6b7280", marginBottom: 20 } }, "\uC791\uC131\uC790 \uBCF8\uC778 \uD655\uC778 \uD6C4 \uB0B4\uC6A9\uC744 \uC5F4\uB78C\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 360, margin: "0 auto" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85 \uC785\uB825", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })), onKeyDown: (e) => e.key === "Enter" && verify() })), err && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 8, fontWeight: 500 } }, err), /* @__PURE__ */ React.createElement(PBtn, { onClick: verify }, "\uBCF8\uC778 \uD655\uC778"))) : /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement("p", { style: { fontSize: 15, color: "#374151", lineHeight: 1.8, padding: "16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #2563eb", marginBottom: post.answer ? 20 : 0 } }, post.content), post.answer && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#15803d", marginBottom: 8 } }, "\u{1F4AC} \uAD00\uB9AC\uC790 \uB2F5\uBCC0"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: "#166534", lineHeight: 1.7 } }, post.answer), post.answeredAt && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginTop: 6 } }, post.answeredAt)))));
+}
+function BoardWrite({ board, onAdd, onBack, notify, isMobile }) {
+  const [step, setStep] = useState("privacy");
+  const [f, setF] = useState({ title: "", content: "", cat: "", dong: "", ho: "", name: "", phone: "" });
+  const [err, setErr] = useState({});
+  if (step === "privacy") return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uAC74\uC758\uC0AC\uD56D \uC791\uC131", onOk: () => setStep("form"), onCancel: onBack, inline: true }));
+  const validate = () => {
+    const e = {};
+    if (!f.title.trim()) e.title = "\uC81C\uBAA9\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.content.trim()) e.content = "\uB0B4\uC6A9\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.cat) e.cat = "\uBD84\uC57C\uB97C \uC120\uD0DD\uD558\uC138\uC694.";
+    if (!f.dong) e.dong = "\uB3D9\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.ho) e.ho = "\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.name) e.name = "\uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.phone) e.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+    setErr(e);
+    return Object.keys(e).length === 0;
+  };
+  const submit = () => {
+    if (!validate()) return;
+    const id = `BRD-${String(board.length + 1).padStart(3, "0")}`;
+    onAdd({
+      id,
+      title: f.title,
+      content: f.content,
+      cat: f.cat,
+      author: { dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone) },
+      createdAt: today(),
+      status: "pending",
+      answer: "",
+      answeredAt: ""
+    });
+    onBack();
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uAC74\uC758\uC0AC\uD56D \uC791\uC131"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uB0B4\uC6A9\uC740 \uC791\uC131\uC790 \uBCF8\uC778\uB9CC \uC5F4\uB78C \uAC00\uB2A5\uD569\uB2C8\uB2E4. \uAD00\uB9AC\uC790\uAC00 \uAC80\uD1A0 \uD6C4 \uB2F5\uBCC0\uB4DC\uB9BD\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uAC74\uC758 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uAC74\uC758 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), BOARD_CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.content }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), placeholder: "\uAC74\uC758 \uB0B4\uC6A9\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.content, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC791\uC131\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790\uB9CC \uC5F4\uB78C \xB7 \uBAA9\uC801 \uB2EC\uC131 \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85 \uC785\uB825", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uAC74\uC758\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
+}
+function AdminLogin({ pw, setPw, err, onLogin }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", paddingTop: 40 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: "32px 28px", width: "100%", maxWidth: 360, border: "1px solid #e5e7eb", boxShadow: "0 2px 16px rgba(0,0,0,.07)" } }, /* @__PURE__ */ React.createElement("h2", { style: { textAlign: "center", color: "#111827", marginBottom: 6, fontSize: 18, fontWeight: 800 } }, "\uAD00\uB9AC\uC790 \uB85C\uADF8\uC778"), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "#9ca3af", fontSize: 13, marginBottom: 22 } }, "\uAD00\uB9AC\uC790 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694"), /* @__PURE__ */ React.createElement(Fld, { label: "\uBE44\uBC00\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { type: "password", style: S.inp, placeholder: "\uBE44\uBC00\uBC88\uD638", value: pw, onChange: (e) => setPw(e.target.value), onKeyDown: (e) => e.key === "Enter" && onLogin(), autoComplete: "current-password" })), err && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 10, fontWeight: 500 } }, err), /* @__PURE__ */ React.createElement(PBtn, { onClick: onLogin }, "\uB85C\uADF8\uC778"), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "#d1d5db", fontSize: 11, marginTop: 12 } }, "\uAE30\uBCF8 \uBE44\uBC00\uBC88\uD638: admin1234")));
+}
+function AdminPanel({ ag, vt, cfg, board, patchAg, patchVt, addVt, setCfg, onBack, notify, isMobile }) {
+  const [tab, setTab] = useState("overview");
+  const tabs = [{ v: "overview", l: "\uD604\uD669" }, { v: "agenda", l: "\uC548\uAC74" }, { v: "vote", l: "\uC790\uBB38\uB2E8" }, { v: "board", l: "\uAC74\uC758\uC0AC\uD56D" }, { v: "cfg", l: "\uC124\uC815" }];
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: isMobile ? 17 : 20, color: "#111827" } }, "\uAD00\uB9AC\uC790 \uD328\uB110"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "\uC804\uCCB4 \uD604\uD669 \uD655\uC778 \uBC0F \uCEE8\uD2B8\uB864")), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack, style: { width: "auto", padding: "7px 14px", fontSize: 13 } }, "\u2190 \uBA54\uC778")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", borderBottom: "2px solid #e5e7eb", marginBottom: 20, overflowX: "auto" } }, tabs.map((t) => /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      key: t.v,
+      onClick: () => setTab(t.v),
+      style: {
+        padding: "9px 16px",
+        border: "none",
+        cursor: "pointer",
+        fontSize: 14,
+        fontWeight: tab === t.v ? 700 : 400,
+        background: "transparent",
+        color: tab === t.v ? "#111827" : "#6b7280",
+        borderBottom: `2px solid ${tab === t.v ? "#111827" : "transparent"}`,
+        marginBottom: -2,
+        whiteSpace: "nowrap"
+      }
+    },
+    t.l
+  ))), tab === "overview" && /* @__PURE__ */ React.createElement(AdminOverview, { ag, vt, isMobile }), tab === "board" && /* @__PURE__ */ React.createElement(AdminBoard, { board, setCfg, notify }), tab === "vote" && /* @__PURE__ */ React.createElement(AdminVotes, { vt, patchVt, addVt, notify, isMobile }), tab === "agenda" && /* @__PURE__ */ React.createElement(AdminAgendas, { ag, patchAg, cfg, notify, isMobile }), tab === "cfg" && /* @__PURE__ */ React.createElement(AdminCfg, { cfg, setCfg, notify }));
+}
+function AdminOverview({ ag, vt, isMobile }) {
+  const vtActive = vt.filter((v) => canVote(v));
+  const agDraft = ag.filter((a) => a.status === "draft");
+  const agActive = ag.filter((a) => isActiveAg(a));
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { className: "grid-4", style: { marginBottom: 20 } }, [
+    { l: "\uC124\uBB38/\uD22C\uD45C", v: vt.length, sub: `\uC9C4\uD589\uC911 ${vtActive.length}`, c: BLUE, bg: LBLUE },
+    { l: "\uD22C\uD45C \uCC38\uC5EC", v: vt.reduce((s, v) => s + v.votes.length, 0), sub: "\uB204\uC801", c: "#7c3aed", bg: "#f5f3ff" },
+    { l: "\uC804\uCCB4 \uC548\uAC74", v: ag.length, sub: `\uB300\uAE30 ${agDraft.length}`, c: "#d97706", bg: "#fef3c7" },
+    { l: "\uC218\uB834 \uC548\uAC74", v: agActive.length, sub: `\uCC2C\uC131 ${ag.reduce((s, a) => s + a.sigs.length, 0)}\uBA85`, c: "#16a34a", bg: "#dcfce7" }
+  ].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.l, style: { background: s.bg, borderRadius: 10, padding: "14px", border: `1px solid ${s.c}20` } }, /* @__PURE__ */ React.createElement("div", { className: "stat-num", style: { fontWeight: 800, color: s.c, lineHeight: 1 } }, s.v), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: s.c, marginTop: 3, fontWeight: 600 } }, s.l), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: `${s.c}aa`, marginTop: 1 } }, s.sub)))), agDraft.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "16px", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#92400e", fontSize: 13, marginBottom: 10 } }, "\u23F3 \uC2B9\uC778 \uB300\uAE30 (", agDraft.length, "\uAC74)"), agDraft.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "#fff", borderRadius: 8, marginBottom: 7, border: "1px solid #fde68a" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827" } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, a.submitter.dong, "\uB3D9 ", a.submitter.ho, "\uD638 \xB7 ", fmt(a.createdAt))), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#d97706", fontWeight: 600, background: "#fef3c7", padding: "2px 7px", borderRadius: 4, flexShrink: 0, marginLeft: 8 } }, "\uB300\uAE30")))), /* @__PURE__ */ React.createElement("div", { className: "grid-2" }, [
+    { title: "\uC9C4\uD589\uC911 \uC815\uCC45 \uC790\uBB38", items: vtActive, render: (v) => /* @__PURE__ */ React.createElement("div", { key: v.id, style: { padding: "9px 10px", background: "#f9fafb", borderRadius: 8, marginBottom: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 1 } }, v.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "\u270B ", v.votes.length, "\uBA85 \xB7 ", fmt(v.endDate))) },
+    { title: "\uC218\uB834 \uC911 \uC548\uAC74", items: agActive, render: (a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { padding: "9px 10px", background: "#f9fafb", borderRadius: 8, marginBottom: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 1 } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "\u270B ", a.sigs.length, "\uBA85 \xB7 ", fmt(a.endDate))) }
+  ].map(({ title, items, render }) => /* @__PURE__ */ React.createElement("div", { key: title, style: { background: "#fff", borderRadius: 10, padding: "16px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid #f3f4f6" } }, title), items.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : items.map(render)))));
+}
+function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
+  const [sel, setSel] = useState(null);
+  const [cr, setCr] = useState(false);
+  const [nv, setNv] = useState({ title: "", desc: "", type: "\uCC2C\uBC18", options: ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"], startDate: today(), endDate: "", status: "active", showResult: "always" });
+  const stOpts = [{ v: "active", l: "\uC9C4\uD589\uC911" }, { v: "closed", l: "\uB9C8\uAC10" }, { v: "draft", l: "\uC900\uBE44\uC911" }];
+  const saveNew = () => {
+    if (!nv.title || !nv.endDate) {
+      notify("\uC81C\uBAA9\uACFC \uB9C8\uAC10\uC77C\uC744 \uC785\uB825\uD558\uC138\uC694.", "err");
+      return;
+    }
+    const opts = nv.options.filter((o) => o.trim());
+    if (opts.length < 2) {
+      notify("\uC120\uD0DD\uC9C0\uB97C 2\uAC1C \uC774\uC0C1 \uC785\uB825\uD558\uC138\uC694.", "err");
+      return;
+    }
+    addVt(__spreadProps(__spreadValues({}, nv), { id: `VOT-${String(vt.length + 1).padStart(3, "0")}`, options: opts, votes: [], createdAt: today() }));
+    setCr(false);
+    setNv({ title: "", desc: "", type: "\uCC2C\uBC18", options: ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"], startDate: today(), endDate: "", status: "active", showResult: "always" });
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setCr(true), style: { padding: "9px 18px", borderRadius: 8, border: "none", background: "#1f2937", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 40 } }, "+ \uB9CC\uB4E4\uAE30")), cr && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: "20px", border: `2px solid ${BLUE}`, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, "\uC0C8 \uD22C\uD45C/\uC124\uBB38 \uB9CC\uB4E4\uAE30"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uD22C\uD45C/\uC124\uBB38 \uC81C\uBAA9", value: nv.title, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC124\uBA85" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 60, resize: "vertical" }), placeholder: "\uC124\uBA85", value: nv.desc, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC720\uD615" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: nv.type, onChange: (e) => {
+    const t = e.target.value;
+    setNv((p) => __spreadProps(__spreadValues({}, p), { type: t, options: t === "\uCC2C\uBC18" ? ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"] : ["", ""] }));
+  } }, /* @__PURE__ */ React.createElement("option", null, "\uCC2C\uBC18"), /* @__PURE__ */ React.createElement("option", null, "\uAC1D\uAD00\uC2DD"))), /* @__PURE__ */ React.createElement(Fld, { label: "\uACB0\uACFC \uACF5\uAC1C" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: nv.showResult, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { showResult: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "always" }, "\uC2E4\uC2DC\uAC04"), /* @__PURE__ */ React.createElement("option", { value: "after" }, "\uC885\uB8CC\uD6C4")))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC120\uD0DD\uC9C0" }, nv.options.map((o, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 7, marginBottom: 7 } }, /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { flex: 1 }), placeholder: `\uC120\uD0DD\uC9C0 ${i + 1}`, value: o, onChange: (e) => {
+    const a = [...nv.options];
+    a[i] = e.target.value;
+    setNv((p) => __spreadProps(__spreadValues({}, p), { options: a }));
+  } }), nv.options.length > 2 && /* @__PURE__ */ React.createElement("button", { style: { padding: "8px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 12, color: "#6b7280", flexShrink: 0 }, onClick: () => setNv((p) => __spreadProps(__spreadValues({}, p), { options: p.options.filter((_, j) => j !== i) })) }, "\u2715"))), /* @__PURE__ */ React.createElement("button", { style: { padding: "6px 12px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 12, color: "#6b7280", marginTop: 3 }, onClick: () => setNv((p) => __spreadProps(__spreadValues({}, p), { options: [...p.options, ""] })) }, "+ \uCD94\uAC00")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC2DC\uC791\uC77C" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: nv.startDate, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { startDate: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uB9C8\uAC10\uC77C" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: nv.endDate, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { endDate: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: saveNew }, "\uB4F1\uB85D"), /* @__PURE__ */ React.createElement(GBtn, { onClick: () => setCr(false) }, "\uCDE8\uC18C"))), vt.map((v) => {
+    const si = vtSt(v);
+    const open = sel && sel.id === v.id;
+    return /* @__PURE__ */ React.createElement("div", { key: v.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) }, /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : v) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: v.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: v.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, v.type), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, v.id)), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, v.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\u270B ", v.votes.length, "\uBA85 \xB7 ", fmt(v.startDate), "~", fmt(v.endDate))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() }, stOpts.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: v.status === s.v, onClick: () => {
+      patchVt(v.id, { status: s.v });
+      if (sel && sel.id === v.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: s.v }));
+    } }, s.l))), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } }, v.options.map((o) => {
+      const cnt = v.votes.filter((x) => x.choice === o).length, pct = v.votes.length > 0 ? Math.round(cnt / v.votes.length * 100) : 0;
+      return /* @__PURE__ */ React.createElement("div", { key: o, style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 3 } }, /* @__PURE__ */ React.createElement("span", null, o), /* @__PURE__ */ React.createElement("b", null, cnt, "\uBA85 (", pct, "%)")), /* @__PURE__ */ React.createElement("div", { style: { height: 5, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: BLUE, borderRadius: 3 } })));
+    }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 10, fontWeight: 600 } }, "\uCC38\uC5EC\uC790 (", v.votes.length, "\uBA85)"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: 160, overflowY: "auto", marginTop: 6 } }, v.votes.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : v.votes.map((vv, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 0.8fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, i + 1), /* @__PURE__ */ React.createElement("span", null, vv.dong, "\uB3D9 ", vv.ho, "\uD638"), /* @__PURE__ */ React.createElement("span", { style: { color: BLUE, fontWeight: 600 } }, vv.choice), /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, vv.date))))));
+  }));
+}
+function AdminBoard({ board, notify }) {
+  const [sel, setSel] = useState(null);
+  const [answer, setAnswer] = useState("");
+  const saveAnswer = (id) => {
+    if (!answer.trim()) {
+      notify("\uB2F5\uBCC0 \uB0B4\uC6A9\uC744 \uC785\uB825\uD558\uC138\uC694.", "err");
+      return;
+    }
+    const stored = JSON.parse(localStorage.getItem("rp3_board") || "[]");
+    const updated = stored.map((b) => b.id === id ? __spreadProps(__spreadValues({}, b), { status: "answered", answer, answeredAt: today() }) : b);
+    localStorage.setItem("rp3_board", JSON.stringify(updated));
+    setSel((p) => __spreadProps(__spreadValues({}, p), { status: "answered", answer, answeredAt: today() }));
+    setAnswer("");
+    notify("\uB2F5\uBCC0\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  };
+  const latestBoard = JSON.parse(localStorage.getItem("rp3_board") || JSON.stringify(board));
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: sel ? "1fr 1.1fr" : "1fr", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, latestBoard.length === 0 && /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uAC74\uC758\uC0AC\uD56D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }), latestBoard.map((b) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: b.id,
+      style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: sel && sel.id === b.id ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8, cursor: "pointer" }),
+      onClick: () => {
+        setSel(b);
+        setAnswer(b.answer || "");
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(b.cat).color, bg: catTag(b.cat).background }, b.cat), /* @__PURE__ */ React.createElement(Tag, { color: b.status === "answered" ? "#16a34a" : "#d97706", bg: b.status === "answered" ? "#dcfce7" : "#fef3c7" }, b.status === "answered" ? "\uB2F5\uBCC0\uC644\uB8CC" : "\uB2F5\uBCC0\uB300\uAE30"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, b.id)),
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, b.title),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, maskDong(b.author.dong), "\uB3D9 ", maskHo(b.author.ho), "\uD638 ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, b.author.name), " \xB7 ", b.author.phone, " \xB7 ", b.createdAt)
+  ))), sel && /* @__PURE__ */ React.createElement("div", { style: __spreadProps(__spreadValues({}, S.adminDetail), { alignSelf: "start", position: "sticky", top: 80 }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "\uAC74\uC758 \uC0C1\uC138"), /* @__PURE__ */ React.createElement("button", { style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#9ca3af" }, onClick: () => setSel(null) }, "\u2715")), [{ l: "\uBC88\uD638", v: sel.id }, { l: "\uBD84\uC57C", v: sel.cat }, { l: "\uC81C\uBAA9", v: sel.title }, { l: "\uC791\uC131\uC790", v: `${sel.author.dong}\uB3D9 ${sel.author.ho}\uD638 ${sel.author.name} (${sel.author.phone})` }, { l: "\uB4F1\uB85D\uC77C", v: sel.createdAt }].map(({ l, v }) => /* @__PURE__ */ React.createElement("div", { key: l, style: S.infoRow }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af", minWidth: 60, fontSize: 13, flexShrink: 0 } }, l), /* @__PURE__ */ React.createElement("b", { style: { fontSize: 13, color: "#111827" } }, v))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", background: "#f9fafb", borderRadius: 8, fontSize: 13, color: "#374151", lineHeight: 1.7, margin: "12px 0 12px", borderLeft: "3px solid #e5e7eb" } }, sel.content), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 8 } }, "\u{1F4AC} \uAD00\uB9AC\uC790 \uB2F5\uBCC0"), sel.status === "answered" && sel.answer && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#166534", lineHeight: 1.7, marginBottom: 10 } }, sel.answer), /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 80, resize: "vertical", marginBottom: 10 }),
+      placeholder: "\uB2F5\uBCC0\uC744 \uC785\uB825\uD558\uC138\uC694",
+      value: answer,
+      onChange: (e) => setAnswer(e.target.value)
+    }
+  ), /* @__PURE__ */ React.createElement(PBtn, { onClick: () => saveAnswer(sel.id) }, "\uB2F5\uBCC0 \uB4F1\uB85D"))));
+}
+function AdminAgendas({ ag, patchAg, cfg, notify, isMobile }) {
+  const [sel, setSel] = useState(null);
+  const [search, setSearch] = useState("");
+  const [stFlt, setStFlt] = useState("\uC804\uCCB4");
+  const stOpts = [{ v: "active", l: "\uC758\uACAC\uC218\uB834" }, { v: "declined", l: "\uBC18\uB824" }, { v: "closed", l: "\uB9C8\uAC10" }, { v: "passed", l: "\uAC00\uACB0" }, { v: "rejected", l: "\uBD80\uACB0" }];
+  const filtered = ag.filter((a) => {
+    const sOk = stFlt === "\uC804\uCCB4" || a.status === stFlt;
+    const kOk = !search || a.title.includes(search) || a.submitter.name.includes(search) || a.submitter.dong.includes(search);
+    return sOk && kOk;
+  });
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 200, flex: 1 }), placeholder: "\u{1F50D} \uAC80\uC0C9", value: search, onChange: (e) => setSearch(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, [{ v: "\uC804\uCCB4", l: "\uC804\uCCB4" }, { v: "draft", l: "\uAC80\uD1A0\uC911" }, ...stOpts].map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))), filtered.length === 0 && /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uD574\uB2F9 \uC548\uAC74 \uC5C6\uC74C" }), filtered.map((a) => {
+    const si = agSt(a);
+    const open = sel && sel.id === a.id;
+    return /* @__PURE__ */ React.createElement("div", { key: a.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) }, /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : a) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, a.id)), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\u{1F4CD} ", a.submitter.dong, "\uB3D9 ", a.submitter.ho, "\uD638 ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, a.submitter.name), " \xB7 ", a.submitter.phone), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "\u270B ", a.sigs.length, "\uBA85 \xB7 ", fmt(a.createdAt), a.endDate ? ` \xB7 ~${fmt(a.endDate)}` : "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() }, a.status === "draft" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#16a34a", color: "#fff", minHeight: 32 },
+        onClick: () => {
+          const approvedAt = today(), endDate = addD(approvedAt, cfg.periodDays);
+          patchAg(a.id, { status: "active", approvedAt, endDate });
+          if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "active", approvedAt, endDate }));
+          notify(`\uC2B9\uC778 \uC644\uB8CC. \uB9C8\uAC10: ${endDate.replace(/-/g, ".")}`);
+        }
+      },
+      "\u2713 \uC2B9\uC778"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#dc2626", color: "#fff", minHeight: 32 },
+        onClick: () => {
+          patchAg(a.id, { status: "declined" });
+          if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "declined" }));
+          notify("\uBC18\uB824\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+        }
+      },
+      "\u2717 \uBC18\uB824"
+    )), a.status !== "draft" && stOpts.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: a.status === s.v, onClick: () => {
+      patchAg(a.id, { status: s.v });
+      if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: s.v }));
+    } }, s.l))), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.7, marginBottom: 12, padding: "10px 12px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, a.desc), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "80px 1fr", gap: 4, marginBottom: 10 } }, [{ l: "\uC2B9\uC778\uC77C", v: a.approvedAt ? fmt(a.approvedAt) : "\uBBF8\uC2B9\uC778" }, { l: "\uB9C8\uAC10\uC77C", v: a.endDate ? fmt(a.endDate) : "\uBBF8\uC124\uC815" }, { l: "\uCC2C\uC131", v: `${a.sigs.length}\uBA85` }].map(({ l, v }) => /* @__PURE__ */ React.createElement(React.Fragment, { key: l }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "#9ca3af" } }, l), /* @__PURE__ */ React.createElement("b", { style: { fontSize: 12, color: "#111827" } }, v)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", fontWeight: 600, marginBottom: 6 } }, "\uCC2C\uC131 \uC81C\uCD9C\uC790 (", a.sigs.length, "\uBA85)"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: 160, overflowY: "auto" } }, a.sigs.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : a.sigs.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 1fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, i + 1), /* @__PURE__ */ React.createElement("span", null, s.dong, "\uB3D9 ", s.ho, "\uD638"), /* @__PURE__ */ React.createElement("span", null, s.name), /* @__PURE__ */ React.createElement("span", { style: { color: "#6b7280" } }, s.phone))))));
+  }));
+}
+function AdminCfg({ cfg, setCfg, notify }) {
+  const [d, setD] = useState(__spreadValues({}, cfg));
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: "22px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement(SLabel, null, "\uD50C\uB7AB\uD3FC \uC815\uBCF4"), /* @__PURE__ */ React.createElement(Fld, { label: "\uBA54\uC778 \uD0C0\uC774\uD2C0" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.title, onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD80\uC81C\uBAA9" }, "     ", /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.sub, onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { sub: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uACF5\uC9C0 \uBB38\uAD6C" }, "  ", /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 65, resize: "vertical" }), value: d.notice, onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { notice: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uD558\uB2E8 \uD478\uD130 \uC815\uBCF4"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC544\uD30C\uD2B8 \uB2E8\uC9C0\uBA85 (CI \uC606 \uD45C\uC2DC)" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.footerAptName || "", onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { footerAptName: e.target.value })), placeholder: "1\uB3D9\uD0C4 \uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8" })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC544\uD30C\uD2B8 \uC8FC\uC18C" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.footerAddr || "", onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { footerAddr: e.target.value })), placeholder: "\uACBD\uAE30\uB3C4 OO\uC2DC OO\uAD6C \uB370\uC2DC\uC559\uB85C 123" })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uAD00\uB9AC\uC0AC\uBB34\uC18C \uC804\uD654" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.footerTel || "", onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { footerTel: e.target.value })), placeholder: "031-000-0000" })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uBA54\uC77C" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.footerEmail || "", onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { footerEmail: e.target.value })), placeholder: "manager@desiang.co.kr" }))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC544\uD30C\uD2B8\uC544\uC774 URL" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: d.footerSite || "", onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { footerSite: e.target.value })), placeholder: "https://www.aptiz.com" })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC548\uAC74 \uC758\uACAC\uC218\uB834 \uAE30\uBCF8\uAC12"), "        ", /* @__PURE__ */ React.createElement(InfoBox, { msg: "\uC2B9\uC778 \uC2DC \uC2B9\uC778\uC77C\uB85C\uBD80\uD130 \uC544\uB798 \uC77C\uC218\uB9CC\uD07C \uC790\uB3D9\uC73C\uB85C \uB9C8\uAC10\uC77C\uC774 \uC124\uC815\uB429\uB2C8\uB2E4." }), /* @__PURE__ */ React.createElement(Fld, { label: `\uC758\uACAC\uC218\uB834 \uAE30\uAC04: \uC2B9\uC778\uC77C\uB85C\uBD80\uD130 ${d.periodDays}\uC77C` }, /* @__PURE__ */ React.createElement("input", { type: "range", min: 3, max: 60, step: 1, value: d.periodDays, onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { periodDays: Number(e.target.value) })), style: { width: "100%", accentColor: BLUE, marginTop: 4 } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 11, color: "#9ca3af" } }, /* @__PURE__ */ React.createElement("span", null, "3\uC77C"), /* @__PURE__ */ React.createElement("span", null, "60\uC77C"))), /* @__PURE__ */ React.createElement(Fld, { label: `\uBAA9\uD45C \uCC2C\uC131\uC218: ${d.minSigs}\uBA85` }, /* @__PURE__ */ React.createElement("input", { type: "range", min: 5, max: 300, step: 5, value: d.minSigs, onChange: (e) => setD((p) => __spreadProps(__spreadValues({}, p), { minSigs: Number(e.target.value) })), style: { width: "100%", accentColor: BLUE, marginTop: 4 } }), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 11, color: "#9ca3af" } }, /* @__PURE__ */ React.createElement("span", null, "5\uBA85"), /* @__PURE__ */ React.createElement("span", null, "300\uBA85"))), /* @__PURE__ */ React.createElement(PBtn, { onClick: () => {
+    setCfg(__spreadValues({}, d));
+    notify("\uC124\uC815\uC774 \uC800\uC7A5\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  } }, "\uC800\uC7A5")));
+}
+function PageHero({ icon, title, desc, isMobile, children }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, marginBottom: 3 } }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: isMobile ? 20 : 24 } }, icon), /* @__PURE__ */ React.createElement("h1", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", letterSpacing: "-0.3px" } }, title)), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af" } }, desc)), children);
+}
+function BackBtn({ onClick }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: { background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#6b7280", marginBottom: 14, display: "flex", alignItems: "center", gap: 4, padding: 0, fontWeight: 600, minHeight: 36 } }, "\u2190 \uBAA9\uB85D\uC73C\uB85C");
+}
+function FBtn({ active, onClick, children, small }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: { padding: small ? "2px 7px" : "5px 12px", borderRadius: 20, border: `1px solid ${active ? "#111827" : "#e5e7eb"}`, cursor: "pointer", fontSize: small ? 11 : 12, fontWeight: active ? 700 : 400, background: active ? "#111827" : "#fff", color: active ? "#fff" : "#6b7280", whiteSpace: "nowrap", minHeight: small ? 24 : 32 } }, children);
+}
+function SortBtn({ active, onClick, children }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: { padding: "3px 9px", borderRadius: 20, border: `1px solid ${active ? "#111827" : "#d1d5db"}`, cursor: "pointer", fontSize: 11, fontWeight: 600, background: active ? "#111827" : "#fff", color: active ? "#fff" : "#6b7280", whiteSpace: "nowrap", minHeight: 28 } }, children);
+}
+function ABtn({ active, onClick, children }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: { padding: "5px 12px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: active ? "#111827" : "#f3f4f6", color: active ? "#fff" : "#374151", minHeight: 32 } }, children);
+}
+function Tag({ color, bg, children }) {
+  return /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, fontWeight: 700, color, background: bg, borderRadius: 4, padding: "2px 7px", whiteSpace: "nowrap" } }, children);
+}
+function PBtn({ onClick, children, style: ext }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: __spreadValues({ background: BLUE, color: "#fff", border: "none", borderRadius: 8, padding: "12px 20px", fontSize: 14, fontWeight: 700, cursor: "pointer", width: "100%", minHeight: 44 }, ext) }, children);
+}
+function GBtn({ onClick, children, style: ext }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: __spreadValues({ background: "#f3f4f6", color: "#374151", border: "none", borderRadius: 8, padding: "12px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", width: "100%", minHeight: 44 }, ext) }, children);
+}
+function Fld({ label, err, children }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10, flex: 1 } }, /* @__PURE__ */ React.createElement("label", { style: { display: "block", fontSize: 12, color: "#6b7280", fontWeight: 600, marginBottom: 4 } }, label), children, err && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: 11, marginTop: 2 } }, err));
+}
+function SLabel({ children }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 12, borderLeft: `3px solid ${BLUE}`, paddingLeft: 7, marginBottom: 12, marginTop: 6 } }, children);
+}
+function InfoBox({ msg }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { background: LBLUE, border: `1px solid #bfdbfe`, borderRadius: 8, padding: "9px 12px", fontSize: 12, color: "#1e40af", marginBottom: 14, lineHeight: 1.6 } }, msg);
+}
+function WarnBox({ msg }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "11px 14px", fontSize: 13, color: "#92400e", marginBottom: 8, lineHeight: 1.6 } }, msg);
+}
+function SuccessBox({ msg }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "11px 14px", fontSize: 13, color: "#15803d", marginBottom: 8 } }, msg);
+}
+function EmptyMsg({ msg }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", padding: "22px", color: "#9ca3af", fontSize: 13, background: "#f9fafb", borderRadius: 8 } }, msg);
+}
+function MoreBtn({ onClick }) {
+  return /* @__PURE__ */ React.createElement("button", { onClick, style: { width: "100%", padding: "10px", border: "1px solid #e5e7eb", borderRadius: 8, background: "#fff", cursor: "pointer", fontSize: 12, color: "#6b7280", marginTop: 2, minHeight: 40 } }, "\uB354\uBCF4\uAE30 +");
+}
+function Footer({ onPolicy, isMobile, cfg, onAdminClick, showModeSelect, setShowModeSelect }) {
+  const [clickCount, setClickCount] = React.useState(0);
+  const handleCIClick = () => {
+    const next = clickCount + 1;
+    setClickCount(next);
+    if (next >= 7) {
+      setClickCount(0);
+      setShowModeSelect(true);
+    }
+  };
+  return /* @__PURE__ */ React.createElement(React.Fragment, null, showModeSelect && /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 14, padding: "32px 28px", width: "100%", maxWidth: 340, boxShadow: "0 8px 40px rgba(0,0,0,.2)" } }, /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", marginBottom: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 32, marginBottom: 8 } }, "\u{1F510}"), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: 16, color: "#111827", marginBottom: 4 } }, "\uAD00\uB9AC\uC790 \uBA54\uB274"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\uC811\uADFC\uD560 \uBA54\uB274\uB97C \uC120\uD0DD\uD558\uC138\uC694")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => {
+        setShowModeSelect(false);
+        onAdminClick("admin");
+      },
+      style: { padding: "14px 20px", borderRadius: 10, border: "none", background: "#1f2937", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }
+    },
+    /* @__PURE__ */ React.createElement("span", { style: { fontSize: 20 } }, "\u2699\uFE0F"),
+    /* @__PURE__ */ React.createElement("div", { style: { textAlign: "left" } }, /* @__PURE__ */ React.createElement("div", null, "\uAD00\uB9AC\uC790 \uD328\uB110"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "rgba(255,255,255,.55)", fontWeight: 400, marginTop: 1 } }, "\uC548\uAC74\xB7\uC790\uBB38\xB7\uAC74\uC758\uC0AC\uD56D \uAD00\uB9AC"))
+  ), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => {
+        setShowModeSelect(false);
+        window.open("upload_members.html", "_blank");
+      },
+      style: { padding: "14px 20px", borderRadius: 10, border: "1.5px solid #e5e7eb", background: "#fff", color: "#111827", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 10 }
+    },
+    /* @__PURE__ */ React.createElement("span", { style: { fontSize: 20 } }, "\u{1F4CB}"),
+    /* @__PURE__ */ React.createElement("div", { style: { textAlign: "left" } }, /* @__PURE__ */ React.createElement("div", null, "\uC785\uC8FC\uBBFC \uBA85\uB2E8 \uAD00\uB9AC"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", fontWeight: 400, marginTop: 1 } }, "\uC5D1\uC140 \uC5C5\uB85C\uB4DC \xB7 Google Sheets \uC5F0\uB3D9"))
+  )), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => setShowModeSelect(false),
+      style: { width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #e5e7eb", background: "#f9fafb", color: "#6b7280", fontSize: 13, fontWeight: 600, cursor: "pointer" }
+    },
+    "\uCDE8\uC18C"
+  ))), /* @__PURE__ */ React.createElement("footer", { style: { position: "relative", zIndex: 1, background: "#1f2937", marginTop: 48, marginBottom: 0, padding: 0 } }, /* @__PURE__ */ React.createElement("div", { style: {
+    maxWidth: 1100,
+    margin: "0 auto",
+    padding: isMobile ? "12px 14px" : "0 20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    flexWrap: "wrap",
+    gap: 8,
+    minHeight: 52
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: isMobile ? 10 : 20, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { onClick: handleCIClick, style: { cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } }, /* @__PURE__ */ React.createElement("img", { src: "data:image/png;base64,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", height: "28", alt: "\uC790\uC5F0\uC564\uB370\uC2DC\uC559", style: { display: "block", mixBlendMode: "screen", opacity: 0.9 } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.55)", fontWeight: 500, whiteSpace: "nowrap" } }, cfg.footerAptName || "1\uB3D9\uD0C4 \uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8")), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.25)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.5)" } }, "\u{1F4CD} ", cfg.footerAddr), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.2)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement(
+    "a",
+    {
+      href: cfg.footerSite || "https://www.apti.co.kr/apti/",
+      target: "_blank",
+      rel: "noreferrer",
+      style: { fontSize: 12, color: "rgba(255,255,255,.5)", textDecoration: "none" }
+    },
+    "\u{1F310} \uC544\uD30C\uD2B8\uC544\uC774"
+  ), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.2)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: () => onAdminClick("board"),
+      style: {
+        background: "transparent",
+        border: "none",
+        padding: "3px 0",
+        cursor: "pointer",
+        fontSize: 12,
+        color: "rgba(255,255,255,.5)",
+        fontWeight: 500,
+        whiteSpace: "nowrap"
+      }
+    },
+    "\u{1F4EC} \uAC74\uC758\uC0AC\uD56D"
+  )), /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onPolicy,
+      style: {
+        background: "transparent",
+        border: "1px solid rgba(255,255,255,.2)",
+        borderRadius: 5,
+        padding: "4px 12px",
+        cursor: "pointer",
+        fontSize: 11,
+        color: "rgba(255,255,255,.4)",
+        fontWeight: 600,
+        flexShrink: 0,
+        whiteSpace: "nowrap"
+      }
+    },
+    "\uAC1C\uC778\uC815\uBCF4 \uCC98\uB9AC\uBC29\uCE68"
+  ))));
+}
+function PolicyModal({ onClose }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 600, padding: "20px", overflowY: "auto" } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 14, width: "100%", maxWidth: 700, padding: "32px 32px 28px", boxShadow: "0 8px 40px rgba(0,0,0,.2)", marginTop: 20, marginBottom: 20 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, paddingBottom: 16, borderBottom: "2px solid #1f2937" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("h2", { style: { fontWeight: 800, fontSize: 18, color: "#111827" } }, "\uAC1C\uC778\uC815\uBCF4 \uCC98\uB9AC\uBC29\uCE68"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginTop: 4 } }, "\uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8 \uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758 \xB7 \uC2DC\uD589\uC77C: 2025\uB144 1\uC6D4 1\uC77C")), /* @__PURE__ */ React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "#9ca3af" } }, "\u2715")), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.85, overflowY: "auto", maxHeight: "70vh" } }, /* @__PURE__ */ React.createElement(PolicySection, { num: "1", title: "\uAC1C\uC778\uC815\uBCF4\uCC98\uB9AC\uC790 \uC815\uBCF4" }, /* @__PURE__ */ React.createElement(PolicyTable, { rows: [
+    ["\uCC98\uB9AC\uC790\uBA85", "\uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8 \uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758"],
+    ["\uB300 \uD45C \uC790", "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758 \uD68C\uC7A5"],
+    ["\uC18C \uC7AC \uC9C0", "\uACBD\uAE30\uB3C4 OO\uC2DC OO\uAD6C \uB370\uC2DC\uC559\uB85C 123"],
+    ["\uC5F0 \uB77D \uCC98", "\uAD00\uB9AC\uC0AC\uBB34\uC18C (031-000-0000)"],
+    ["\uC774 \uBA54 \uC77C", "manager@desiang.co.kr"]
+  ] }), /* @__PURE__ */ React.createElement("p", { style: { marginTop: 8, color: "#6b7280" } }, "\uBCF8 \uD50C\uB7AB\uD3FC\uC740 \u300C\uACF5\uB3D9\uC8FC\uD0DD\uAD00\uB9AC\uBC95\u300D \uC81C14\uC870\uC5D0 \uB530\uB77C \uAD6C\uC131\uB41C \uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758(\uACF5\uB3D9\uC8FC\uD0DD\uC758 \uC785\uC8FC\uC790\uB4F1\uC744 \uB300\uD45C\uD558\uC5EC \uAD00\uB9AC\uC5D0 \uAD00\uD55C \uC8FC\uC694\uC0AC\uD56D\uC744 \uACB0\uC815\uD558\uB294 \uC790\uCE58 \uC758\uACB0\uAE30\uAD6C)\uAC00 \uACF5\uB3D9\uC8FC\uD0DD \uAD00\uB9AC \uBAA9\uC801\uC73C\uB85C \uC6B4\uC601\uD569\uB2C8\uB2E4.")), /* @__PURE__ */ React.createElement(PolicySection, { num: "2", title: "\uAC1C\uC778\uC815\uBCF4\uC758 \uC218\uC9D1 \uD56D\uBAA9 \uBC0F \uC218\uC9D1 \uADFC\uAC70" }, /* @__PURE__ */ React.createElement(PolicyTable, { rows: [
+    ["\uC218\uC9D1 \uD56D\uBAA9", "\uB3D9\xB7\uD638\uC218, \uC131\uBA85, \uC804\uD654\uBC88\uD638"],
+    ["\uC218\uC9D1 \uBC29\uBC95", "\uD50C\uB7AB\uD3FC \uB0B4 \uC9C1\uC811 \uC785\uB825(\uB3D9\uC758 \uD6C4 \uC218\uC9D1)"],
+    ["\uBC95\uC801 \uADFC\uAC70", "\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95 \uC81C15\uC870 \uC81C1\uD56D \uC81C1\uD638(\uC815\uBCF4\uC8FC\uCCB4 \uB3D9\uC758), \uC81C15\uC870 \uC81C1\uD56D \uC81C2\uD638(\uBC95\uB839\uC0C1 \uC758\uBB34 \uC774\uD589)"]
+  ] }), /* @__PURE__ */ React.createElement("p", { style: { marginTop: 8, color: "#6b7280" } }, "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uB294 \u300C\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95\u300D \uC81C2\uC870 \uC81C5\uD638\uC5D0 \uB530\uB978 \uAC1C\uC778\uC815\uBCF4\uCC98\uB9AC\uC790\uC5D0 \uD574\uB2F9\uD558\uBA70, \uB3D9\uBC95 \uC81C3\uC870\uC5D0 \uB530\uB77C \uBAA9\uC801\uC5D0 \uD544\uC694\uD55C \uCD5C\uC18C\uD55C\uC758 \uAC1C\uC778\uC815\uBCF4\uB9CC \uC801\uBC95\xB7\uC815\uB2F9\uD558\uAC8C \uC218\uC9D1\uD569\uB2C8\uB2E4.")), /* @__PURE__ */ React.createElement(PolicySection, { num: "3", title: "\uAC1C\uC778\uC815\uBCF4\uC758 \uCC98\uB9AC \uBAA9\uC801" }, /* @__PURE__ */ React.createElement("ul", { style: { paddingLeft: 16, lineHeight: 2 } }, /* @__PURE__ */ React.createElement("li", null, "\uC548\uAC74 \uC81C\uC548\uC790 \uBCF8\uC778 \uD655\uC778 \uBC0F \uC911\uBCF5 \uC2E0\uCCAD \uBC29\uC9C0"), /* @__PURE__ */ React.createElement("li", null, "\uC815\uCC45 \uC790\uBB38 \uD22C\uD45C\xB7\uC124\uBB38 \uCC38\uC5EC\uC790 \uBCF8\uC778 \uD655\uC778 \uBC0F \uC911\uBCF5 \uD22C\uD45C \uBC29\uC9C0"), /* @__PURE__ */ React.createElement("li", null, "\uAC74\uC758\uC0AC\uD56D \uC811\uC218\uC790 \uD655\uC778 \uBC0F \uB2F5\uBCC0 \uD68C\uC2E0"), /* @__PURE__ */ React.createElement("li", null, "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758 \uD68C\uC758 \uACB0\uACFC \uBC0F \uCC98\uB9AC \uACB0\uACFC \uD1B5\uBCF4(\uD544\uC694 \uC2DC)")), /* @__PURE__ */ React.createElement("p", { style: { marginTop: 8, color: "#6b7280" } }, "\uC218\uC9D1\uD55C \uAC1C\uC778\uC815\uBCF4\uB294 \uC704 \uBAA9\uC801 \uC774\uC678\uC758 \uC6A9\uB3C4\uB85C\uB294 \uC774\uC6A9\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4(\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95 \uC81C3\uC870 \uC81C2\uD56D).")), /* @__PURE__ */ React.createElement(PolicySection, { num: "4", title: "\uAC1C\uC778\uC815\uBCF4\uC758 \uBCF4\uC720\xB7\uC774\uC6A9 \uAE30\uAC04 \uBC0F \uD30C\uAE30" }, /* @__PURE__ */ React.createElement(PolicyTable, { rows: [
+    ["\uBCF4\uC720 \uAE30\uAC04", "\uCC98\uB9AC \uBAA9\uC801 \uB2EC\uC131 \uC2DC\uAE4C\uC9C0"],
+    ["\uD30C\uAE30 \uC2DC\uC810", "\uC548\uAC74 \uC758\uACB0 \uC644\uB8CC / \uD22C\uD45C \uC885\uB8CC / \uAC74\uC758\uC0AC\uD56D \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uC989\uC2DC"],
+    ["\uD30C\uAE30 \uBC29\uBC95", "\uC804\uC790\uC801 \uD30C\uC77C: \uBCF5\uAD6C \uBD88\uAC00\uB2A5\uD55C \uBC29\uBC95\uC73C\uB85C \uC601\uAD6C \uC0AD\uC81C"]
+  ] }), /* @__PURE__ */ React.createElement("p", { style: { marginTop: 8, color: "#6b7280" } }, "\uB2E8, \uAD00\uB828 \uBC95\uB839\uC5D0 \uB530\uB77C \uBCF4\uC874 \uC758\uBB34\uAC00 \uC788\uB294 \uACBD\uC6B0 \uD574\uB2F9 \uAE30\uAC04\uAE4C\uC9C0 \uBCF4\uAD00\uD569\uB2C8\uB2E4(\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95 \uC81C21\uC870).")), /* @__PURE__ */ React.createElement(PolicySection, { num: "5", title: "\uAC1C\uC778\uC815\uBCF4\uC758 \uC81C3\uC790 \uC81C\uACF5" }, /* @__PURE__ */ React.createElement("p", null, "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uB294 \uC815\uBCF4\uC8FC\uCCB4\uC758 \uB3D9\uC758 \uC5C6\uC774 \uAC1C\uC778\uC815\uBCF4\uB97C \uC81C3\uC790\uC5D0\uAC8C \uC81C\uACF5\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB2E4\uB9CC, \uC544\uB798\uC758 \uACBD\uC6B0\uB294 \uC608\uC678\uC785\uB2C8\uB2E4(\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95 \uC81C17\uC870)."), /* @__PURE__ */ React.createElement("ul", { style: { paddingLeft: 16, lineHeight: 2, marginTop: 6 } }, /* @__PURE__ */ React.createElement("li", null, "\uC815\uBCF4\uC8FC\uCCB4\uAC00 \uC0AC\uC804\uC5D0 \uB3D9\uC758\uD55C \uACBD\uC6B0"), /* @__PURE__ */ React.createElement("li", null, "\uBC95\uB839\uC758 \uADDC\uC815\uC5D0 \uC758\uAC70\uD558\uAC70\uB098 \uC218\uC0AC\xB7\uC870\uC0AC \uBAA9\uC801\uC73C\uB85C \uAD00\uACC4\uAE30\uAD00\uC758 \uC801\uBC95\uD55C \uC694\uCCAD\uC774 \uC788\uB294 \uACBD\uC6B0"))), /* @__PURE__ */ React.createElement(PolicySection, { num: "6", title: "\uAC1C\uC778\uC815\uBCF4\uC758 \uC548\uC804\uC131 \uD655\uBCF4 \uC870\uCE58" }, /* @__PURE__ */ React.createElement("p", null, "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uB294 \u300C\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95\u300D \uC81C29\uC870\uC5D0 \uB530\uB77C \uC544\uB798 \uC548\uC804\uC131 \uD655\uBCF4 \uC870\uCE58\uB97C \uC2DC\uD589\uD569\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement("ul", { style: { paddingLeft: 16, lineHeight: 2, marginTop: 6 } }, /* @__PURE__ */ React.createElement("li", null, "\uAD00\uB9AC\uC790 \uACC4\uC815 \uBE44\uBC00\uBC88\uD638 \uC554\uD638\uD654 \uAD00\uB9AC"), /* @__PURE__ */ React.createElement("li", null, "\uAC1C\uC778\uC815\uBCF4 \uC811\uADFC \uAD8C\uD55C\uC744 \uAD00\uB9AC\uC790(\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758)\uB85C \uC5C4\uACA9\uD788 \uC81C\uD55C"), /* @__PURE__ */ React.createElement("li", null, "\uC804\uD654\uBC88\uD638 \uB9C8\uC2A4\uD0B9 \uCC98\uB9AC \u2013 \uACF5\uAC1C \uD654\uBA74\uC5D0\uC11C \uC2DD\uBCC4 \uBD88\uAC00 \uC218\uC900\uC73C\uB85C \uAC00\uACF5"), /* @__PURE__ */ React.createElement("li", null, "\uB3D9\xB7\uD638\uC218\xB7\uC774\uB984 \uB9C8\uC2A4\uD0B9 \uCC98\uB9AC \u2013 \uBAA9\uB85D\xB7\uC0C1\uC138 \uD654\uBA74\uC5D0\uC11C \uBD80\uBD84 \uACF5\uAC1C"))), /* @__PURE__ */ React.createElement(PolicySection, { num: "7", title: "\uC815\uBCF4\uC8FC\uCCB4\uC758 \uAD8C\uB9AC\xB7\uC758\uBB34 \uBC0F \uD589\uC0AC \uBC29\uBC95" }, /* @__PURE__ */ React.createElement("p", null, "\uC815\uBCF4\uC8FC\uCCB4(\uC785\uC8FC\uBBFC)\uB294 \u300C\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95\u300D \uC81C4\uC870\uC5D0 \uB530\uB77C \uC5B8\uC81C\uB4E0\uC9C0 \uB2E4\uC74C \uAD8C\uB9AC\uB97C \uD589\uC0AC\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement("ul", { style: { paddingLeft: 16, lineHeight: 2, marginTop: 6 } }, /* @__PURE__ */ React.createElement("li", null, "\uAC1C\uC778\uC815\uBCF4 \uCC98\uB9AC\uC5D0 \uAD00\uD55C \uC5F4\uB78C \uC694\uCCAD (\uC81C35\uC870)"), /* @__PURE__ */ React.createElement("li", null, "\uC624\uB958 \uC815\uC815 \uC694\uCCAD (\uC81C36\uC870)"), /* @__PURE__ */ React.createElement("li", null, "\uC0AD\uC81C \uC694\uCCAD (\uC81C36\uC870)"), /* @__PURE__ */ React.createElement("li", null, "\uCC98\uB9AC \uC815\uC9C0 \uC694\uCCAD (\uC81C37\uC870)")), /* @__PURE__ */ React.createElement("p", { style: { marginTop: 8 } }, "\uAD8C\uB9AC \uD589\uC0AC\uB294 \uAD00\uB9AC\uC0AC\uBB34\uC18C \uBC29\uBB38 \uB610\uB294 \uC544\uB798 \uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uCC45\uC784\uC790\uC5D0\uAC8C \uC11C\uBA74\xB7\uC804\uD654\xB7\uC774\uBA54\uC77C\uB85C \uC694\uCCAD\uD558\uC2ED\uC2DC\uC624. \uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758\uB294 \uC694\uCCAD\uC744 \uBC1B\uC740 \uB0A0\uB85C\uBD80\uD130 10\uC77C \uC774\uB0B4\uC5D0 \uC870\uCE58 \uACB0\uACFC\uB97C \uD1B5\uC9C0\uD569\uB2C8\uB2E4.")), /* @__PURE__ */ React.createElement(PolicySection, { num: "8", title: "\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uCC45\uC784\uC790" }, /* @__PURE__ */ React.createElement(PolicyTable, { rows: [
+    ["\uC9C1 \uCC45", "\uC785\uC8FC\uC790\uB300\uD45C\uD68C\uC758 \uD68C\uC7A5 (\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uCC45\uC784\uC790)"],
+    ["\uC5F0 \uB77D \uCC98", "\uAD00\uB9AC\uC0AC\uBB34\uC18C 031-000-0000"],
+    ["\uC774 \uBA54 \uC77C", "manager@desiang.co.kr"]
+  ] })), /* @__PURE__ */ React.createElement(PolicySection, { num: "9", title: "\uAC1C\uC778\uC815\uBCF4 \uCC98\uB9AC\uBC29\uCE68 \uBCC0\uACBD" }, /* @__PURE__ */ React.createElement("p", null, "\uBCF8 \uBC29\uCE68\uC740 2025\uB144 1\uC6D4 1\uC77C\uBD80\uD130 \uC2DC\uD589\uB429\uB2C8\uB2E4. \uB0B4\uC6A9 \uBCC0\uACBD \uC2DC \uD50C\uB7AB\uD3FC \uACF5\uC9C0 \uBC0F \uC544\uD30C\uD2B8 \uAC8C\uC2DC\uD310\uC744 \uD1B5\uD574 \uC2DC\uD589 7\uC77C \uC804 \uC0AC\uC804 \uC548\uB0B4\uD569\uB2C8\uB2E4(\uAC1C\uC778\uC815\uBCF4 \uBCF4\uD638\uBC95 \uC81C30\uC870).")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 20, padding: "12px 16px", background: "#f9fafb", borderRadius: 8, fontSize: 12, color: "#6b7280", lineHeight: 1.7 } }, "\u203B \uAC1C\uC778\uC815\uBCF4 \uCC98\uB9AC\uC5D0 \uAD00\uD55C \uBD88\uB9CC \uB610\uB294 \uD53C\uD574 \uAD6C\uC81C\uB294 \uAC1C\uC778\uC815\uBCF4\uBCF4\uD638\uC704\uC6D0\uD68C(", /* @__PURE__ */ React.createElement("b", null, "privacy.go.kr"), ") \uB610\uB294 \uAC1C\uC778\uC815\uBCF4 \uBD84\uC7C1\uC870\uC815\uC704\uC6D0\uD68C(", /* @__PURE__ */ React.createElement("b", null, "kopico.go.kr"), ")\uC5D0 \uC2E0\uCCAD\uD558\uC2E4 \uC218 \uC788\uC2B5\uB2C8\uB2E4.")), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 20, paddingTop: 16, borderTop: "1px solid #f3f4f6", textAlign: "right" } }, /* @__PURE__ */ React.createElement(
+    "button",
+    {
+      onClick: onClose,
+      style: { padding: "10px 28px", borderRadius: 8, border: "none", background: "#1f2937", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }
+    },
+    "\uD655\uC778"
+  ))));
+}
+function PolicySection({ num, title, children }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 22 } }, /* @__PURE__ */ React.createElement("h3", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 10, display: "flex", alignItems: "center", gap: 8 } }, /* @__PURE__ */ React.createElement("span", { style: { background: "#1f2937", color: "#fff", borderRadius: "50%", width: 20, height: 20, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, flexShrink: 0 } }, num), title), children);
+}
+function PolicyTable({ rows }) {
+  return /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13, marginTop: 8 } }, /* @__PURE__ */ React.createElement("tbody", null, rows.map(([l, v]) => /* @__PURE__ */ React.createElement("tr", { key: l }, /* @__PURE__ */ React.createElement("td", { style: { padding: "7px 12px", background: "#f9fafb", fontWeight: 600, color: "#374151", whiteSpace: "nowrap", width: 120, borderBottom: "1px solid #e5e7eb", verticalAlign: "top" } }, l), /* @__PURE__ */ React.createElement("td", { style: { padding: "7px 12px", color: "#6b7280", borderBottom: "1px solid #e5e7eb" } }, v)))));
+}
+function Toast({ msg, type }) {
+  return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 20, left: "50%", transform: "translateX(-50%)", background: type === "err" ? "#dc2626" : "#111827", color: "#fff", padding: "10px 20px", borderRadius: 8, fontWeight: 600, fontSize: 13, boxShadow: "0 4px 20px rgba(0,0,0,.2)", zIndex: 9999, whiteSpace: "nowrap", maxWidth: "90vw", textOverflow: "ellipsis", overflow: "hidden" } }, type === "err" ? "\u2717 " : "\u2713 ", msg);
+}
+const S = {
+  inp: { width: "100%", padding: "10px 12px", border: "1px solid #e5e7eb", borderRadius: 8, fontSize: 14, color: "#111827", background: "#fff", outline: "none", boxSizing: "border-box", WebkitAppearance: "none", minHeight: 44 },
+  adminRow: { background: "#fff", borderRadius: 10, padding: "14px 16px", border: "1px solid #e5e7eb", boxShadow: "0 1px 4px rgba(0,0,0,.04)" }
+};
+const _il=document.getElementById("init-loading");if(_il)_il.remove();
+ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
+
+</script>
+</body>
+</html>
