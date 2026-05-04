@@ -132,10 +132,31 @@ const Inp = ({ label, value, onChange, placeholder, type = "text", multi }) => /
 function Toast({ msg, type }) {
   return /* @__PURE__ */ React.createElement("div", { style: { position: "fixed", bottom: 72, left: "50%", transform: "translateX(-50%)", background: type === "err" ? "#dc2626" : "#1f2937", color: "#fff", padding: "10px 20px", borderRadius: 8, fontSize: 13, fontWeight: 600, zIndex: 9999, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,.2)" } }, type === "err" ? "\u2717 " : "\u2713 ", msg);
 }
+
+/* 추가 헬퍼 */
+async function gasCall(body) { return mGasPost(body); }
+async function gasGet(action) {
+  try {
+    const r = await fetch(GAS_URL + "?action=" + action);
+    return r.json();
+  } catch(e) { return {ok:false,error:e.message}; }
+}
+const CATS = ['주차','소음','청소·위생','시설관리','보안','관리비','기타'];
+const CAT_COLOR = {
+  '주차':       {color:'#1d4ed8',background:'#dbeafe'},
+  '소음':       {color:'#7c3aed',background:'#ede9fe'},
+  '청소·위생':  {color:'#0891b2',background:'#cffafe'},
+  '시설관리':   {color:'#d97706',background:'#fef3c7'},
+  '보안':       {color:'#dc2626',background:'#fee2e2'},
+  '관리비':     {color:'#16a34a',background:'#dcfce7'},
+  '기타':       {color:'#6b7280',background:'#f3f4f6'},
+};
+function catStyle(cat){ return CAT_COLOR[cat]||{color:'#6b7280',background:'#f3f4f6'}; }
 async function verifyMember(dong, ho, name) {
   if (GAS_URL === "YOUR_GAS_URL_HERE") return true;
   try {
-    const r = await fetch(GAS_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action: "verifyMember", dong, ho, name }) });
+    const d = encodeURIComponent(JSON.stringify({action:"verifyMember",dong,ho,name}));
+    const r = await fetch(GAS_URL + "?d=" + d);
     const d = await r.json();
     return d.ok && d.data && d.data.verified;
   } catch (e) {
