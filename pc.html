@@ -192,7 +192,7 @@ const maskName = (s) => {
   return cho[Math.floor(code / 588)] + "**";
 };
 const maskPh = (p) => (p || "").replace(/(\d{3})-(\d{4})-(\d{4})/, "$1-****-$3");
-const fmt = (d) => d ? d.replace(/-/g, ".") : "\uBBF8\uC124\uC815";
+const fmt = (d) => { if(!d) return ""; const s = String(d); return s.slice(0,10).replace(/-/g,"."); };
 const dLeft = (e) => e ? Math.ceil((new Date(e) - /* @__PURE__ */ new Date()) / 864e5) : null;
 const today = () => (/* @__PURE__ */ new Date()).toISOString().slice(0, 10);
 const addD = (d, n) => {
@@ -887,56 +887,49 @@ function AdminPanel({ ag, vt, cfg, board, patchAg, patchVt, addVt, setCfg, onBac
 }
 function AdminOverview({ ag, vt, isMobile }) {
   const vtActive = vt.filter((v) => canVote(v));
-  const agDraft = ag.filter((a) => a.status === "draft");
-  const agActive = ag.filter((a) => isActiveAg(a));
-  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { className: "grid-4", style: { marginBottom: 20 } }, [
-    { l: "\uC124\uBB38/\uD22C\uD45C", v: vt.length, sub: `\uC9C4\uD589\uC911 ${vtActive.length}`, c: BLUE, bg: LBLUE },
-    { l: "\uD22C\uD45C \uCC38\uC5EC", v: vt.reduce((s, v) => s + v.votes.length, 0), sub: "\uB204\uC801", c: "#7c3aed", bg: "#f5f3ff" },
-    { l: "\uC804\uCCB4 \uC548\uAC74", v: ag.length, sub: `\uB300\uAE30 ${agDraft.length}`, c: "#d97706", bg: "#fef3c7" },
-    { l: "\uC218\uB834 \uC548\uAC74", v: agActive.length, sub: `\uCC2C\uC131 ${ag.reduce((s, a) => s + a.sigs.length, 0)}\uBA85`, c: "#16a34a", bg: "#dcfce7" }
-  ].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.l, style: { background: s.bg, borderRadius: 10, padding: "14px", border: `1px solid ${s.c}20` } }, /* @__PURE__ */ React.createElement("div", { className: "stat-num", style: { fontWeight: 800, color: s.c, lineHeight: 1 } }, s.v), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: s.c, marginTop: 3, fontWeight: 600 } }, s.l), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: `${s.c}aa`, marginTop: 1 } }, s.sub)))), agDraft.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "16px", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#92400e", fontSize: 13, marginBottom: 10 } }, "\u23F3 \uC2B9\uC778 \uB300\uAE30 (", agDraft.length, "\uAC74)"), agDraft.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "#fff", borderRadius: 8, marginBottom: 7, border: "1px solid #fde68a" } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827" } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, a.submitter.dong, "\uB3D9 ", a.submitter.ho, "\uD638 \xB7 ", fmt(a.createdAt))), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 10, color: "#d97706", fontWeight: 600, background: "#fef3c7", padding: "2px 7px", borderRadius: 4, flexShrink: 0, marginLeft: 8 } }, "\uB300\uAE30")))), /* @__PURE__ */ React.createElement("div", { className: "grid-2" }, [
-    { title: "\uC9C4\uD589\uC911 \uC815\uCC45 \uC790\uBB38", items: vtActive, render: (v) => /* @__PURE__ */ React.createElement("div", { key: v.id, style: { padding: "9px 10px", background: "#f9fafb", borderRadius: 8, marginBottom: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 1 } }, v.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "\u270B ", v.votes.length, "\uBA85 \xB7 ", fmt(v.endDate))) },
-    { title: "\uC218\uB834 \uC911 \uC548\uAC74", items: agActive, render: (a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { padding: "9px 10px", background: "#f9fafb", borderRadius: 8, marginBottom: 7 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 1 } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, "\u270B ", a.sigs.length, "\uBA85 \xB7 ", fmt(a.endDate))) }
-  ].map(({ title, items, render }) => /* @__PURE__ */ React.createElement("div", { key: title, style: { background: "#fff", borderRadius: 10, padding: "16px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 10, paddingBottom: 8, borderBottom: "1px solid #f3f4f6" } }, title), items.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : items.map(render)))));
+  const agActive = ag.filter((a) => isActive(a));
+  const agDraft  = ag.filter((a) => a.status === "draft");
+  return /* @__PURE__ */ React.createElement("div", null,
+    /* @__PURE__ */ React.createElement("div", { className: "grid-4", style: { marginBottom: 16 } }, [
+      { l: "\uC124\uBB38/\uD22C\uD45C", v: vt.length,                                   sub: "\uC9C4\uD589\uC911 " + vtActive.length,                              c: "#2563eb", bg: "#eff6ff" },
+      { l: "\uD22C\uD45C \uCC38\uC5EC",  v: vt.reduce((s,v)=>s+v.votes.length,0),       sub: "\uB204\uC801",                                                       c: "#7c3aed", bg: "#f5f3ff" },
+      { l: "\uC804\uCCB4 \uC548\uAC74", v: ag.length,                                   sub: `\uB300\uAE30 ${agDraft.length}`,                                     c: "#d97706", bg: "#fef3c7" },
+      { l: "\uC218\uB834 \uC548\uAC74", v: agActive.length,                             sub: `\uCC2C\uC131 ${ag.reduce((s,a)=>s+a.sigs.length,0)}\uBA85`,          c: "#16a34a", bg: "#dcfce7" },
+    ].map((s) => /* @__PURE__ */ React.createElement("div", { key: s.l, style: { background: s.bg, borderRadius: 10, padding: "14px", border: `1px solid ${s.c}20` } },
+      /* @__PURE__ */ React.createElement("div", { className: "stat-num", style: { fontWeight: 800, color: s.c, lineHeight: 1 } }, s.v),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: s.c, marginTop: 3, fontWeight: 600 } }, s.l),
+      /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: `${s.c}aa`, marginTop: 1 } }, s.sub)
+    ))),
+    agDraft.length > 0 && /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: "16px", marginBottom: 16 } },
+      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#92400e", fontSize: 13, marginBottom: 10 } }, "\u23F3 \uC2B9\uC778 \uB300\uAE30 (", agDraft.length, "\uAC74)"),
+      agDraft.map((a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "#fff", borderRadius: 8, marginBottom: 7, border: "1px solid #fde68a" } },
+        /* @__PURE__ */ React.createElement("div", null,
+          /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827" } }, a.title),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af" } }, a.submitter.dong, "\uB3D9 ", a.submitter.ho, "\uD638 \xB7 ", fmt(a.createdAt))
+        ),
+        /* @__PURE__ */ React.createElement("span", { style: { fontSize: 11, color: "#d97706", background: "#fef3c7", borderRadius: 4, padding: "2px 7px", fontWeight: 600, flexShrink: 0 } }, "\uAC80\uD1A0\uC911")
+      ))
+    ),
+    /* @__PURE__ */ React.createElement("div", { className: "grid-2" }, [
+      { title: "\uC218\uB834 \uC911 \uC548\uAC74", items: agActive, render: (a) => /* @__PURE__ */ React.createElement("div", { key: a.id, style: { padding: "9px 10px", background: "#f9fafb", borderRadius: 8, marginBottom: 7 } },
+          /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 1 } }, a.title),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, "\u270B ", a.sigs.length, "\uBA85 \xB7 ", fmt(a.endDate))
+        )
+      },
+      { title: "\uC9C4\uD589\uC911 \uC815\uCC45 \uC790\uBB38", items: vtActive, render: (v) => /* @__PURE__ */ React.createElement("div", { key: v.id, style: { padding: "9px 10px", background: "#f9fafb", borderRadius: 8, marginBottom: 7 } },
+          /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 600, fontSize: 13, color: "#111827", marginBottom: 1 } }, v.title),
+          /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#6b7280" } }, "\u270B ", v.votes.length, "\uBA85 \xB7 ", fmt(v.endDate))
+        )
+      },
+    ].map(({ title, items, render }) => /* @__PURE__ */ React.createElement("div", { key: title, style: { background: "#fff", borderRadius: 10, border: "1px solid #e5e7eb", padding: "14px" } },
+      /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 10 } }, title),
+      items.length === 0
+        ? /* @__PURE__ */ React.createElement("div", { style: { textAlign: "center", color: "#9ca3af", fontSize: 13, padding: "16px 0" } }, "\uC5C6\uC74C")
+        : items.map(render)
+    )))
+  );
 }
-function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
-  const [sel, setSel] = useState(null);
-  const [cr, setCr] = useState(false);
-  const [nv, setNv] = useState({ title: "", desc: "", type: "\uCC2C\uBC18", options: ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"], startDate: today(), endDate: "", status: "active", showResult: "always" });
-  const stOpts = [{ v: "active", l: "\uC9C4\uD589\uC911" }, { v: "closed", l: "\uB9C8\uAC10" }, { v: "draft", l: "\uC900\uBE44\uC911" }];
-  const saveNew = () => {
-    if (!nv.title || !nv.endDate) {
-      notify("\uC81C\uBAA9\uACFC \uB9C8\uAC10\uC77C\uC744 \uC785\uB825\uD558\uC138\uC694.", "err");
-      return;
-    }
-    const opts = nv.options.filter((o) => o.trim());
-    if (opts.length < 2) {
-      notify("\uC120\uD0DD\uC9C0\uB97C 2\uAC1C \uC774\uC0C1 \uC785\uB825\uD558\uC138\uC694.", "err");
-      return;
-    }
-    addVt(__spreadProps(__spreadValues({}, nv), { id: `VOT-${String(vt.length + 1).padStart(3, "0")}`, options: opts, votes: [], createdAt: today() }));
-    setCr(false);
-    setNv({ title: "", desc: "", type: "\uCC2C\uBC18", options: ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"], startDate: today(), endDate: "", status: "active", showResult: "always" });
-  };
-  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => setCr(true), style: { padding: "9px 18px", borderRadius: 8, border: "none", background: "#1f2937", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", minHeight: 40 } }, "+ \uB9CC\uB4E4\uAE30")), cr && /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: "20px", border: `2px solid ${BLUE}`, marginBottom: 16 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, "\uC0C8 \uD22C\uD45C/\uC124\uBB38 \uB9CC\uB4E4\uAE30"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uD22C\uD45C/\uC124\uBB38 \uC81C\uBAA9", value: nv.title, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC124\uBA85" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 60, resize: "vertical" }), placeholder: "\uC124\uBA85", value: nv.desc, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC720\uD615" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: nv.type, onChange: (e) => {
-    const t = e.target.value;
-    setNv((p) => __spreadProps(__spreadValues({}, p), { type: t, options: t === "\uCC2C\uBC18" ? ["\uCC2C\uC131", "\uBC18\uB300", "\uBCF4\uB958"] : ["", ""] }));
-  } }, /* @__PURE__ */ React.createElement("option", null, "\uCC2C\uBC18"), /* @__PURE__ */ React.createElement("option", null, "\uAC1D\uAD00\uC2DD"))), /* @__PURE__ */ React.createElement(Fld, { label: "\uACB0\uACFC \uACF5\uAC1C" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: nv.showResult, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { showResult: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "always" }, "\uC2E4\uC2DC\uAC04"), /* @__PURE__ */ React.createElement("option", { value: "after" }, "\uC885\uB8CC\uD6C4")))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC120\uD0DD\uC9C0" }, nv.options.map((o, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "flex", gap: 7, marginBottom: 7 } }, /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { flex: 1 }), placeholder: `\uC120\uD0DD\uC9C0 ${i + 1}`, value: o, onChange: (e) => {
-    const a = [...nv.options];
-    a[i] = e.target.value;
-    setNv((p) => __spreadProps(__spreadValues({}, p), { options: a }));
-  } }), nv.options.length > 2 && /* @__PURE__ */ React.createElement("button", { style: { padding: "8px 10px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 12, color: "#6b7280", flexShrink: 0 }, onClick: () => setNv((p) => __spreadProps(__spreadValues({}, p), { options: p.options.filter((_, j) => j !== i) })) }, "\u2715"))), /* @__PURE__ */ React.createElement("button", { style: { padding: "6px 12px", borderRadius: 6, border: "1px solid #e5e7eb", background: "#fff", cursor: "pointer", fontSize: 12, color: "#6b7280", marginTop: 3 }, onClick: () => setNv((p) => __spreadProps(__spreadValues({}, p), { options: [...p.options, ""] })) }, "+ \uCD94\uAC00")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC2DC\uC791\uC77C" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: nv.startDate, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { startDate: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uB9C8\uAC10\uC77C" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: nv.endDate, onChange: (e) => setNv((p) => __spreadProps(__spreadValues({}, p), { endDate: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: saveNew }, "\uB4F1\uB85D"), /* @__PURE__ */ React.createElement(GBtn, { onClick: () => setCr(false) }, "\uCDE8\uC18C"))), vt.map((v) => {
-    const si = vtSt(v);
-    const open = sel && sel.id === v.id;
-    return /* @__PURE__ */ React.createElement("div", { key: v.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) }, /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : v) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: v.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: v.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, v.type), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, v.id)), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, v.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\u270B ", v.votes.length, "\uBA85 \xB7 ", fmt(v.startDate), "~", fmt(v.endDate))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() }, stOpts.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: v.status === s.v, onClick: () => {
-      patchVt(v.id, { status: s.v });
-      if (sel && sel.id === v.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: s.v }));
-    } }, s.l))), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } }, v.options.map((o) => {
-      const cnt = v.votes.filter((x) => x.choice === o).length, pct = v.votes.length > 0 ? Math.round(cnt / v.votes.length * 100) : 0;
-      return /* @__PURE__ */ React.createElement("div", { key: o, style: { marginBottom: 8 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 3 } }, /* @__PURE__ */ React.createElement("span", null, o), /* @__PURE__ */ React.createElement("b", null, cnt, "\uBA85 (", pct, "%)")), /* @__PURE__ */ React.createElement("div", { style: { height: 5, background: "#f3f4f6", borderRadius: 3, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: BLUE, borderRadius: 3 } })));
-    }), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 10, fontWeight: 600 } }, "\uCC38\uC5EC\uC790 (", v.votes.length, "\uBA85)"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: 160, overflowY: "auto", marginTop: 6 } }, v.votes.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : v.votes.map((vv, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 0.8fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, i + 1), /* @__PURE__ */ React.createElement("span", null, vv.dong, "\uB3D9 ", vv.ho, "\uD638"), /* @__PURE__ */ React.createElement("span", { style: { color: BLUE, fontWeight: 600 } }, vv.choice), /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, vv.date))))));
-  }));
-}
+
 function AdminBoard({ board, notify }) {
   const [sel, setSel] = useState(null);
   const [answer, setAnswer] = useState("");
@@ -1299,5 +1292,4 @@ const _il=document.getElementById("init-loading");if(_il)_il.remove();
 ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
 
 </script>
-</body>
-</html>
+  l>
