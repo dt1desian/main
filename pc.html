@@ -258,7 +258,7 @@ function App() {
   const [toast, setToast] = useState(null);
   const [adminOk, setAdminOk] = useState(false);
   const saveCfgToGas = (newCfg) => {
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec")
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE')
       gasCall({ action: "setCfg", cfg: newCfg, adminPw: "admin1234" }).catch(() => {
       });
   };
@@ -270,7 +270,7 @@ function App() {
   const [showModeSelect, setShowModeSelect] = useState(false);
   const isMobile = useIsMobile();
   useEffect(() => {
-    if (GAS_URL === "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") return;
+    if (GAS_URL === 'YOUR_GAS_URL_HERE') return;
     setLoading(true);
     gasGet("getAll").then((res) => {
       if (res.ok && res.data) {
@@ -303,40 +303,40 @@ function App() {
   };
   const patchAg = (id, p) => {
     setAg((prev) => prev.map((a) => a.id === id ? __spreadValues(__spreadValues({}, a), p) : a));
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "patchAg", id, patch: p, adminPw: "admin1234" }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchAg", id, patch: p, adminPw: "admin1234" }).catch(() => {
     });
   };
   const addAg = (a) => {
     setAg((p) => [a, ...p]);
     notify("\uC548\uAC74\uC774 \uC811\uC218\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAD00\uB9AC\uC790 \uC2B9\uC778 \uD6C4 \uAC8C\uC2DC\uB429\uB2C8\uB2E4.");
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "addAg", data: a }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "addAg", data: a }).catch(() => {
     });
   };
   const addAgSig = (id, sig) => {
     setAg((prev) => prev.map((a) => a.id === id ? __spreadProps(__spreadValues({}, a), { sigs: [...a.sigs, sig] }) : a));
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "addAgSig", id, sig }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "addAgSig", id, sig }).catch(() => {
     });
   };
   const addBoard = (b) => {
     setBoard((p) => [b, ...p]);
     notify("\uAC74\uC758\uC0AC\uD56D\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "addBoard", data: b }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "addBoard", data: b }).catch(() => {
     });
   };
   const patchVt = (id, p) => {
     setVt((prev) => prev.map((v) => v.id === id ? __spreadValues(__spreadValues({}, v), p) : v));
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "patchVt", id, patch: p, adminPw: "admin1234" }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchVt", id, patch: p, adminPw: "admin1234" }).catch(() => {
     });
   };
   const addVt = (v) => {
     setVt((p) => [v, ...p]);
     notify("\uD22C\uD45C/\uC124\uBB38\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "addVt", data: v, adminPw: "admin1234" }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "addVt", data: v, adminPw: "admin1234" }).catch(() => {
     });
   };
   const addVtE = (id, e) => {
     setVt((prev) => prev.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: [...v.votes, e] }) : v));
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") gasCall({ action: "addVtVote", id, vote: e }).catch(() => {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "addVtVote", id, vote: e }).catch(() => {
     });
   };
   const selAg = ag.find((a) => a.id === selId) || null;
@@ -358,7 +358,7 @@ function App() {
     addAgSig(id, sig);
     setAg((p) => p.map((a) => a.id === id ? __spreadProps(__spreadValues({}, a), { sigs: [...a.sigs, sig] }) : a));
   }, notify, isMobile }), page === "board" && sub === "list" && /* @__PURE__ */ React.createElement(BoardList, { board, nav, isMobile }), page === "board" && sub === "detail" && /* @__PURE__ */ React.createElement(BoardDetail, { post: board.find((b) => b.id === selId), onBack: () => nav("board"), isMobile }), page === "board" && sub === "write" && /* @__PURE__ */ React.createElement(BoardWrite, { board, onAdd: addBoard, onBack: () => nav("board"), notify, isMobile }), page === "agenda" && sub === "submit" && /* @__PURE__ */ React.createElement(AgendaSubmit, { ag, onAdd: addAg, onBack: () => nav("agenda"), notify, isMobile }), page === "admin" && (adminOk ? /* @__PURE__ */ React.createElement(AdminPanel, { ag, vt, cfg, board, patchAg, patchVt, addVt, setCfg, onBack: () => nav("home"), notify, isMobile }) : /* @__PURE__ */ React.createElement(AdminLogin, { pw: adminPw, setPw: setAdminPw, err: adminErr, onLogin: () => {
-    if (GAS_URL !== "https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec") {
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
       gasCall({ action: "adminLogin", pw: adminPw }).then((res) => {
         if (res.ok && res.data) {
           setAdminOk(true);
