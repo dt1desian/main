@@ -246,15 +246,7 @@ const LS = {
     }
   }, set: (v) => localStorage.setItem("rp5_cfg", JSON.stringify(v)) }
 };
-function useIsMobile() {
-  const [m, setM] = useState(window.innerWidth <= 768);
-  useEffect(() => {
-    const h = () => setM(window.innerWidth <= 768);
-    window.addEventListener("resize", h);
-    return () => window.removeEventListener("resize", h);
-  }, []);
-  return m;
-}
+function useIsMobile() { return false; }
 function App() {
   const [page, setPage] = useState("home");
   const [sub, setSub] = useState("list");
