@@ -99,6 +99,19 @@ async function gasCall(body) {
   const r = await fetch(GAS_URL + '?d=' + encodeURIComponent(JSON.stringify(body)));
   return r.json();
 }
+const CATS = ['주차','소음','청소\u00b7위생','시설관리','보안','관리비','기타'];
+const CAT_COLOR = {
+  '주차':          {color:'#1d4ed8',background:'#dbeafe'},
+  '소음':          {color:'#7c3aed',background:'#ede9fe'},
+  '청소\u00b7위생':{color:'#0891b2',background:'#cffafe'},
+  '시설관리':      {color:'#d97706',background:'#fef3c7'},
+  '보안':          {color:'#dc2626',background:'#fee2e2'},
+  '관리비':        {color:'#16a34a',background:'#dcfce7'},
+  '기타':          {color:'#6b7280',background:'#f3f4f6'},
+};
+function catTag(cat){ return CAT_COLOR[cat]||{color:'#6b7280',background:'#f3f4f6'}; }
+const ADM_PW = 'admin1234';
+
 
 /* 입주민 인증 */
 async function verifyMember(dong, ho, name) {
@@ -368,7 +381,7 @@ function App() {
         setAdminErr("\uC11C\uBC84 \uC5F0\uACB0 \uC624\uB958. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.");
       });
     } else {
-      if (adminPw === "admin1234") {
+      if (adminPw === ADM_PW) {
         setAdminOk(true);
         setAdminErr("");
       } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
