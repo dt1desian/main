@@ -365,13 +365,10 @@ function App() {
           setAdminErr("");
         } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
       }).catch(() => {
-        if (adminPw === ADM_PW) {
-          setAdminOk(true);
-          setAdminErr("");
-        } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
+        setAdminErr("\uC11C\uBC84 \uC5F0\uACB0 \uC624\uB958. \uC7A0\uC2DC \uD6C4 \uB2E4\uC2DC \uC2DC\uB3C4\uD574\uC8FC\uC138\uC694.");
       });
     } else {
-      if (adminPw === ADM_PW) {
+      if (adminPw === "admin1234") {
         setAdminOk(true);
         setAdminErr("");
       } else setAdminErr("\uBE44\uBC00\uBC88\uD638\uAC00 \uC62C\uBC14\uB974\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.");
