@@ -98,7 +98,7 @@ const catTag = (cat)=>{
   return {color:m.c,background:m.bg};
 };
 const ADM_PW = "admin1234";
-const GAS_URL = 'YOUR_GAS_URL_HERE'; // ← 배포 후 웹앱 URL로 교체
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'; // ← 배포 후 웹앱 URL로 교체
 
 /* GAS API 호출 헬퍼 */
 async function gasGet(action) {
@@ -116,7 +116,7 @@ async function gasPost(body) {
 
 /* 입주민 인증 */
 async function verifyMember(dong, ho, name) {
-  if(GAS_URL==='YOUR_GAS_URL_HERE') return true; // URL 미설정 시 로컬 모드(검증 스킵)
+  if(GAS_URL==='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') return true; // URL 미설정 시 로컬 모드(검증 스킵)
   try {
     const res = await gasPost({action:'verifyMember', dong, ho, name});
     return res.ok && res.data && res.data.verified;
@@ -223,7 +223,7 @@ function App(){
   const [toast,setToast] = useState(null);
   const [adminOk,setAdminOk]=useState(false);
   const saveCfgToGas=(newCfg)=>{
-    if(GAS_URL!=='YOUR_GAS_URL_HERE')
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec')
       gasPost({action:'setCfg',cfg:newCfg,adminPw:'admin1234'}).catch(()=>{});
   };
   const [adminPw,setAdminPw]=useState("");
@@ -231,11 +231,12 @@ function App(){
   const [menuOpen,setMenuOpen]=useState(false);
   const [loading,setLoading]=useState(false);
   const [showPolicy,setShowPolicy]=useState(false);
+  const [showModeSelect,setShowModeSelect]=useState(false);
   const isMobile=useIsMobile();
 
   // GAS 연동: 최초 로딩 시 서버 데이터 가져오기
   useEffect(()=>{
-    if(GAS_URL==='YOUR_GAS_URL_HERE') return; // URL 미설정 시 localStorage 사용
+    if(GAS_URL==='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') return; // URL 미설정 시 localStorage 사용
     setLoading(true);
     gasGet('getAll').then(res=>{
       if(res.ok && res.data){
@@ -262,34 +263,34 @@ function App(){
 
   const patchAg =(id,p)=>{
     setAg(prev=>prev.map(a=>a.id===id?{...a,...p}:a));
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'patchAg',id,patch:p,adminPw:'admin1234'}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'patchAg',id,patch:p,adminPw:'admin1234'}).catch(()=>{});
   };
   const addAg   =a=>{
     setAg(p=>[a,...p]);
     notify("안건이 접수되었습니다. 관리자 승인 후 게시됩니다.");
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addAg',data:a}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'addAg',data:a}).catch(()=>{});
   };
   const addAgSig=(id,sig)=>{
     setAg(prev=>prev.map(a=>a.id===id?{...a,sigs:[...a.sigs,sig]}:a));
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addAgSig',id,sig}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'addAgSig',id,sig}).catch(()=>{});
   };
   const addBoard =b=>{
     setBoard(p=>[b,...p]);
     notify("건의사항이 등록되었습니다.");
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addBoard',data:b}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'addBoard',data:b}).catch(()=>{});
   };
   const patchVt =(id,p)=>{
     setVt(prev=>prev.map(v=>v.id===id?{...v,...p}:v));
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'patchVt',id,patch:p,adminPw:'admin1234'}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'patchVt',id,patch:p,adminPw:'admin1234'}).catch(()=>{});
   };
   const addVt   =v=>{
     setVt(p=>[v,...p]);
     notify("투표/설문이 등록되었습니다.");
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addVt',data:v,adminPw:'admin1234'}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'addVt',data:v,adminPw:'admin1234'}).catch(()=>{});
   };
   const addVtE  =(id,e)=>{
     setVt(prev=>prev.map(v=>v.id===id?{...v,votes:[...v.votes,e]}:v));
-    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addVtVote',id,vote:e}).catch(()=>{});
+    if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec') gasPost({action:'addVtVote',id,vote:e}).catch(()=>{});
   };
 
   const selAg=ag.find(a=>a.id===selId)||null;
@@ -322,7 +323,7 @@ function App(){
         {page==="admin"&&(adminOk
           ?<AdminPanel ag={ag} vt={vt} cfg={cfg} board={board} patchAg={patchAg} patchVt={patchVt} addVt={addVt} setCfg={setCfg} onBack={()=>nav("home")} notify={notify} isMobile={isMobile}/>
           :<AdminLogin pw={adminPw} setPw={setAdminPw} err={adminErr} onLogin={()=>{
-              if(GAS_URL!=='YOUR_GAS_URL_HERE'){
+              if(GAS_URL!=='https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'){
                 gasPost({action:'adminLogin',pw:adminPw}).then(res=>{
                   if(res.ok && res.data){setAdminOk(true);setAdminErr("");}
                   else setAdminErr("비밀번호가 올바르지 않습니다.");
@@ -339,7 +340,7 @@ function App(){
         )}
       </div>
 
-      <Footer onPolicy={()=>setShowPolicy(true)} isMobile={isMobile} cfg={cfg} onAdminClick={(p)=>{ if(p==="board") nav("board"); else nav("admin"); }}/>
+      <Footer onPolicy={()=>setShowPolicy(true)} isMobile={isMobile} cfg={cfg} onAdminClick={(p)=>{ if(p==="board") nav("board"); else if(p==="admin") nav("admin"); }}/>
       {showPolicy&&<PolicyModal onClose={()=>setShowPolicy(false)}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type}/>}
     </div>
@@ -1586,15 +1587,49 @@ function Footer({onPolicy,isMobile,cfg,onAdminClick}){
   const handleCIClick = () => {
     const next = clickCount + 1;
     setClickCount(next);
-    if(next >= 7){ setClickCount(0); onAdminClick(); }
+    if(next >= 7){ setClickCount(0); setShowModeSelect(true); }
   };
   return(
+    <>
+    {showModeSelect&&(
+      <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.5)",zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:16}}>
+        <div style={{background:"#fff",borderRadius:14,padding:"32px 28px",width:"100%",maxWidth:340,boxShadow:"0 8px 40px rgba(0,0,0,.2)"}}>
+          <div style={{textAlign:"center",marginBottom:24}}>
+            <div style={{fontSize:32,marginBottom:8}}>🔐</div>
+            <div style={{fontWeight:800,fontSize:16,color:"#111827",marginBottom:4}}>관리자 메뉴</div>
+            <div style={{fontSize:12,color:"#9ca3af"}}>접근할 메뉴를 선택하세요</div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:16}}>
+            <button onClick={()=>{setShowModeSelect(false);onAdminClick("admin");}}
+              style={{padding:"14px 20px",borderRadius:10,border:"none",background:"#1f2937",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:20}}>⚙️</span>
+              <div style={{textAlign:"left"}}>
+                <div>관리자 패널</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.55)",fontWeight:400,marginTop:1}}>안건·자문·건의사항 관리</div>
+              </div>
+            </button>
+            <button onClick={()=>{setShowModeSelect(false);window.open('upload_members.html','_blank');}}
+              style={{padding:"14px 20px",borderRadius:10,border:"1.5px solid #e5e7eb",background:"#fff",color:"#111827",fontSize:14,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:20}}>📋</span>
+              <div style={{textAlign:"left"}}>
+                <div>입주민 명단 관리</div>
+                <div style={{fontSize:11,color:"#9ca3af",fontWeight:400,marginTop:1}}>엑셀 업로드 · Google Sheets 연동</div>
+              </div>
+            </button>
+          </div>
+          <button onClick={()=>setShowModeSelect(false)}
+            style={{width:"100%",padding:"10px",borderRadius:8,border:"1px solid #e5e7eb",background:"#f9fafb",color:"#6b7280",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            취소
+          </button>
+        </div>
+      </div>
+    )}
     <footer style={{position:"relative",zIndex:1,background:"#1f2937",marginTop:48,marginBottom:0,padding:0}}>
       <div style={{maxWidth:1100,margin:"0 auto",padding:isMobile?"12px 14px":"0 20px",
         display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,minHeight:52}}>
         <div style={{display:"flex",alignItems:"center",gap:isMobile?10:20,flexWrap:"wrap"}}>
           {/* CI 로고 - 7번 클릭 시 관리자 */}
-          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <div onClick={handleCIClick} style={{cursor:"pointer",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
             <img src="data:image/png;base64,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" height="28" alt="자연앤데시앙" style={{display:"block",mixBlendMode:"screen",opacity:0.9}}/>
             <span style={{fontSize:12,color:"rgba(255,255,255,.55)",fontWeight:500,whiteSpace:"nowrap"}}>
               {cfg.footerAptName||"1동탄 숲속마을 자연앤데시앙아파트"}
@@ -1622,6 +1657,7 @@ function Footer({onPolicy,isMobile,cfg,onAdminClick}){
         </button>
       </div>
     </footer>
+    </>
   );
 }
 
