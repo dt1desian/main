@@ -88,7 +88,16 @@ button:active{opacity:.82;}
 </div>
 
 <script>
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'; // ← 배포 후 웹앱 URL로 교체
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec';
+
+// 안전장치: 10초 후 초기 로딩 스피너 강제 제거
+setTimeout(() => {
+  const _il = document.getElementById("init-loading");
+  if (_il) {
+    console.warn('초기 로딩 타임아웃 - 스피너 강제 제거');
+    _il.remove();
+  }
+}, 10000);
 
 /* GAS API 호출 헬퍼 */
 async function gasGet(action) {
@@ -283,9 +292,21 @@ function App() {
   const [showModeSelect, setShowModeSelect] = useState(false);
   const isMobile = useIsMobile();
   useEffect(() => {
+    // 초기 로딩 스피너 제거 (React 렌더링 전에 표시되던 것)
+    const initLoader = document.getElementById("init-loading");
+    if (initLoader) initLoader.remove();
+    
     if (GAS_URL === 'YOUR_GAS_URL_HERE') return;
     setLoading(true);
+    
+    // 타임아웃 설정: 5초 내에 응답 없으면 로컬 데이터로 진행
+    const timeoutId = setTimeout(() => {
+      console.warn('GAS 응답 시간 초과 - 로컬 데이터로 진행');
+      setLoading(false);
+    }, 5000);
+    
     gasGet("getAll").then((res) => {
+      clearTimeout(timeoutId);
       if (res.ok && res.data) {
         const d = res.data;
         if (d.ag && d.ag.length) setAg(d.ag);
@@ -296,8 +317,13 @@ function App() {
           minSigs: Number(d.cfg.minSigs || 30)
         }));
       }
-    }).catch(() => {
-    }).finally(() => setLoading(false));
+    }).catch((err) => {
+      clearTimeout(timeoutId);
+      console.error('GAS 호출 실패:', err);
+    }).finally(() => {
+      clearTimeout(timeoutId);
+      setLoading(false);
+    });
   }, []);
   useEffect(() => LS.ag.set(ag), [ag]);
   useEffect(() => LS.board.set(board), [board]);
