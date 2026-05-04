@@ -248,6 +248,36 @@ let adminPw  = '';
 let rawData  = [];   // 파싱된 전체 행
 let headers  = [];   // 헤더 행
 
+/* ── 날짜/시간 표시 형식 ───────────────────
+   화면에 표시되는 날짜·시간은 yyyy-mm-dd hh:mm 으로 통일 */
+function pad2(v){ return String(v).padStart(2,'0'); }
+function formatDateTime(value){
+  if(value === null || value === undefined || value === '') return '-';
+  const raw = String(value).trim();
+  if(!raw || raw === '없음' || raw === '-') return raw || '-';
+
+  // ISO 문자열에 시간대 정보가 있는 경우: 브라우저 로컬 시간 기준으로 표시
+  if(/T.*(Z|[+-]\d{2}:?\d{2})$/.test(raw)){
+    const d = new Date(raw);
+    if(!isNaN(d.getTime())){
+      return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    }
+  }
+
+  // yyyy-mm-dd, yyyy.mm.dd, yyyy/mm/dd, yyyy-mm-dd hh:mm, yyyy-mm-ddThh:mm 등 처리
+  const m = raw.match(/^(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::\d{1,2})?)?/);
+  if(m){
+    return `${m[1]}-${pad2(m[2])}-${pad2(m[3])} ${pad2(m[4] || 0)}:${pad2(m[5] || 0)}`;
+  }
+
+  // 기타 Date 파싱 가능 문자열 처리
+  const d = new Date(raw);
+  if(!isNaN(d.getTime())){
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+  return raw;
+}
+
 /* ── 로딩 오버레이 ─────────────────────── */
 function showLoading(msg='처리 중...'){
   document.getElementById('overlay-text').textContent = msg;
@@ -301,7 +331,7 @@ async function loadInfo(){
     const res = await gasPost({action:'getMembersInfo', adminPw});
     if(res.ok && res.data){
       document.getElementById('stat-count').textContent = res.data.count + ' 세대';
-      document.getElementById('stat-date').textContent  = res.data.updatedAt || '없음';
+      document.getElementById('stat-date').textContent  = formatDateTime(res.data.updatedAt) || '없음';
     }
   } catch(e){
     document.getElementById('stat-count').textContent = '오류';
@@ -427,7 +457,7 @@ async function upload(){
     }
     const res = await gasPost({action:'uploadMembers', rows, adminPw});
     if(res.ok && res.data && res.data.ok){
-      showResult('ok', `✅ ${res.data.count}세대 업로드 완료 (${res.data.updatedAt})`);
+      showResult('ok', `✅ ${res.data.count}세대 업로드 완료 (${formatDateTime(res.data.updatedAt)})`);
       loadInfo();
     } else {
       showResult('err', res.data?.error || '업로드 실패');
