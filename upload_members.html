@@ -488,12 +488,11 @@ async function downloadCurrent(){
 
 /* ── GAS 통신 ─────────────────────────── */
 async function gasPost(body){
-  const res = await fetch(GAS_URL, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body: JSON.stringify(body),
-  });
-  return res.json();
+  try{
+    const d=encodeURIComponent(JSON.stringify(body));
+    const r=await fetch(GAS_URL+'?d='+d);
+    return r.json();
+  }catch(e){return{ok:false,error:e.message};}
 }
 
 /* 엔터키 로그인 */
