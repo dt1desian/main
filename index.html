@@ -1,0 +1,1778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<title>입주민 참여플랫폼</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;margin:0;padding:0;}
+html{-webkit-font-smoothing:antialiased;}
+body{background:#f7f8fa;font-family:'Noto Sans KR',sans-serif;color:#1f2937;}
+input,select,textarea,button{font-family:'Noto Sans KR',sans-serif;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:4px;}
+
+/* ─ 반응형 핵심 ─ */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;width:100%;}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;width:100%;}
+.admin-split{display:grid;grid-template-columns:1fr 1.1fr;gap:16px;width:100%;}
+.hide-mobile{display:block;}
+.show-mobile{display:none;}
+.scroll-x{display:flex;gap:6px;flex-wrap:wrap;}
+.hero-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;}
+.home-bottom{display:grid;grid-template-columns:1fr 1fr;gap:28px;width:100%;}
+.pad-main{padding:28px 20px;width:100%;box-sizing:border-box;}
+.stat-num{font-size:26px;}
+.detail-pad{padding:28px 32px;}
+.hero-pad{padding:28px 24px;}
+.hero-h{font-size:22px;}
+.hero-stat-num{font-size:20px;}
+
+@media(max-width:768px){
+  .grid-2{grid-template-columns:1fr;}
+  .grid-4{grid-template-columns:repeat(2,1fr);}
+  .grid-auto{grid-template-columns:1fr;}
+  .admin-split{grid-template-columns:1fr;}
+  .hide-mobile{display:none;}
+  .show-mobile{display:flex;}
+  .scroll-x{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;}
+  .scroll-x::-webkit-scrollbar{height:0;}
+  .hero-grid{grid-template-columns:1fr;}
+  .home-bottom{grid-template-columns:1fr;}
+  .pad-main{padding:14px 12px;}
+  .stat-num{font-size:20px;}
+  .detail-pad{padding:18px 16px;}
+  .hero-pad{padding:20px 16px;}
+  .hero-h{font-size:18px;}
+  .hero-stat-num{font-size:17px;}
+  .btn-row-mobile{flex-direction:column;}
+  /* 모바일 건의사항 테이블 */
+  .board-table-header{display:none;}
+  .board-table-row{grid-template-columns:40px 1fr !important;}
+}
+@media(max-width:480px){
+  .grid-4{grid-template-columns:repeat(2,1fr);}
+  .hero-stat-num{font-size:15px;}
+  .stat-num{font-size:18px;}
+}
+
+/* ─ 공통 트랜지션 ─ */
+.c-card{transition:box-shadow .2s,transform .2s;}
+.c-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1)!important;}
+.btn-ol{transition:all .15s;}
+.btn-ol:hover{background:#2563eb!important;color:#fff!important;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#2563eb!important;box-shadow:0 0 0 3px rgba(37,99,235,.12)!important;}
+button:active{opacity:.82;}
+
+/* ─ 모바일 드로어 ─ */
+.drawer{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:500;display:flex;flex-direction:column;}
+.drawer-inner{background:#fff;padding:0 0 24px;border-radius:0 0 20px 20px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useCallback} = React;
+
+/* ══════════════════════════════════════
+   상수 & 유틸
+══════════════════════════════════════ */
+const CATS   = ["주차","소음","청소·위생","시설관리","보안","관리비","기타"];
+const CAT_COLOR = {
+  "주차":    {c:"#1d4ed8",bg:"#dbeafe"},
+  "소음":    {c:"#7c3aed",bg:"#ede9fe"},
+  "청소·위생":{c:"#0891b2",bg:"#cffafe"},
+  "시설관리":{c:"#d97706",bg:"#fef3c7"},
+  "보안":    {c:"#dc2626",bg:"#fee2e2"},
+  "관리비":  {c:"#16a34a",bg:"#dcfce7"},
+  "기타":    {c:"#6b7280",bg:"#f3f4f6"},
+};
+const catTag = (cat)=>{
+  const m=CAT_COLOR[cat]||{c:"#6b7280",bg:"#f3f4f6"};
+  return {color:m.c,background:m.bg};
+};
+const ADM_PW = "admin1234";
+const GAS_URL = 'YOUR_GAS_URL_HERE'; // ← 배포 후 웹앱 URL로 교체
+
+/* GAS API 호출 헬퍼 */
+async function gasGet(action) {
+  const r = await fetch(GAS_URL + '?action=' + action);
+  return r.json();
+}
+async function gasPost(body) {
+  const r = await fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  });
+  return r.json();
+}
+
+/* 입주민 인증 */
+async function verifyMember(dong, ho, name) {
+  if(GAS_URL==='YOUR_GAS_URL_HERE') return true; // URL 미설정 시 로컬 모드(검증 스킵)
+  try {
+    const res = await gasPost({action:'verifyMember', dong, ho, name});
+    return res.ok && res.data && res.data.verified;
+  } catch(e) {
+    return true; // 네트워크 오류 시 통과 (폴백)
+  }
+}
+
+const BLUE   = "#2563eb";
+const LBLUE  = "#eff6ff";
+
+const DEF_CFG={
+  title:"숲속마을 자연앤데시앙아파트 입주민 참여 플랫폼",sub:"안건 제안 · 정책 자문 · 건의",
+  notice:"안녕하세요. 입주자대표회의입니다. 주민 여러분의 적극적인 참여를 부탁드립니다.",
+  periodDays:14,minSigs:30,
+  footerAptName:"1동탄 숲속마을 자연앤데시앙아파트",
+  footerAddr:"경기도 OO시 OO구 데시앙로 123",
+  footerTel:"031-000-0000",
+  footerSite:"https://www.apti.co.kr/apti/",
+  footerEmail:"manager@desiang.co.kr",
+};
+
+const SAMPLE_AG=[
+  {id:"AGD-001",title:"지하주차장 CCTV 추가 설치",desc:"최근 지하주차장 내 차량 파손 사고가 2건 발생하였습니다. B2층 사각지대 구역에 CCTV 2대 추가 설치를 요청합니다. 관련 견적서도 확보하였으며 설치비 약 120만원 수준입니다.",cat:"보안",submitter:{dong:"101",ho:"1502",name:"김민혁",phone:"010-1234-5678"},status:"active",approvedAt:"2025-04-01",endDate:"2025-05-31",sigs:[{dong:"102",ho:"801",name:"이영수",phone:"010-****-1111",date:"2025-04-03"},{dong:"103",ho:"303",name:"박지은",phone:"010-****-2222",date:"2025-04-05"}],createdAt:"2025-04-01"},
+  {id:"AGD-002",title:"분리수거장 운영시간 연장 요청",desc:"현재 오전 7시~오후 8시 운영으로 직장인들이 이용하기 매우 불편합니다. 오후 10시까지 연장 운영을 요청합니다.",cat:"청소·위생",submitter:{dong:"102",ho:"205",name:"정수빈",phone:"010-5555-6666"},status:"active",approvedAt:"2025-04-08",endDate:"2025-04-22",sigs:[],createdAt:"2025-04-08"},
+  {id:"AGD-003",title:"층간소음 관리 규정 신설",desc:"밤 11시 이후 뛰는 소리, 악기 연주 등으로 수면을 방해받고 있습니다. 층간소음 위반 시 경고→과태료 규정을 신설해 주십시오.",cat:"소음",submitter:{dong:"103",ho:"1201",name:"오세진",phone:"010-7777-8888"},status:"passed",approvedAt:"2025-03-15",endDate:"2025-03-29",sigs:Array.from({length:53},(_,i)=>({dong:String(101+(i%4)),ho:String(100+i),name:"서민준",phone:"010-****-9999",date:"2025-03-20"})),createdAt:"2025-03-15"},
+  {id:"AGD-004",title:"어린이 놀이터 안전 점검 주기 강화",desc:"최근 놀이기구 도색이 벗겨지고 볼트가 느슨해진 부분이 발견되었습니다. 정기 안전점검 주기를 월 1회로 늘려주시기 바랍니다.",cat:"시설관리",submitter:{dong:"104",ho:"402",name:"한지수",phone:"010-9876-5432"},status:"draft",approvedAt:"",endDate:"",sigs:[],createdAt:"2025-04-15"},
+];
+const SAMPLE_VT=[
+  {id:"VOT-001",title:"여름 주민 야외행사(바베큐) 개최 찬반",desc:"입주자대표회의에서 7월 중 아파트 야외 주민 화합 행사 개최를 검토 중입니다. 의견을 선택해 주세요.",type:"찬반",options:["찬성","반대","보류"],startDate:"2025-04-01",endDate:"2025-05-31",status:"active",showResult:"always",votes:[{dong:"101",ho:"201",choice:"찬성",date:"2025-04-02"},{dong:"102",ho:"501",choice:"찬성",date:"2025-04-03"},{dong:"103",ho:"302",choice:"반대",date:"2025-04-04"},{dong:"101",ho:"801",choice:"찬성",date:"2025-04-05"},{dong:"104",ho:"101",choice:"보류",date:"2025-04-06"}],createdAt:"2025-04-01"},
+  {id:"VOT-002",title:"주차장 야간 조명 교체 방식 선호도 조사",desc:"지하주차장 조명을 교체할 예정입니다. 선호하는 방식을 선택해 주세요.",type:"객관식",options:["LED 전구 교체(저비용)","스마트 센서 조명(중비용)","전면 스마트 시스템(고비용)"],startDate:"2025-04-10",endDate:"2025-04-25",status:"active",showResult:"after",votes:[{dong:"102",ho:"301",choice:"스마트 센서 조명(중비용)",date:"2025-04-11"},{dong:"103",ho:"101",choice:"LED 전구 교체(저비용)",date:"2025-04-12"}],createdAt:"2025-04-10"},
+];
+
+const SAMPLE_BOARD = [
+  {id:"BRD-001",title:"엘리베이터 내부 거울 설치 건의",cat:"시설관리",content:"엘리베이터 내부에 거울이 없어 불편합니다. 특히 이사 시 짐 크기를 확인하기 어렵습니다. 설치를 건의드립니다.",author:{dong:"102",ho:"501",name:"홍길동",phone:"010-****-1234"},createdAt:"2025-04-10",status:"pending"},
+  {id:"BRD-002",title:"택배 보관함 추가 설치 요청",cat:"시설관리",content:"현재 택배 보관함이 부족하여 택배가 복도에 방치되는 경우가 많습니다. 동당 1대씩 추가 설치를 요청합니다.",author:{dong:"103",ho:"302",name:"김영희",phone:"010-****-5678"},createdAt:"2025-04-12",status:"answered"},
+];
+
+
+const maskF    = s=>(s||"")[0]+"○".repeat(Math.max((s||"").length-1,1));
+const maskDong = s=>{ const t=(s||""); return t.length>=2?t.slice(0,2)+"○".repeat(Math.max(t.length-2,0)):t; };
+const maskHo   = s=>"○".repeat(Math.min((s||"").length||3, 4));
+const maskName = s=>{
+  const c=(s||"")[0]; if(!c) return "";
+  const code=c.charCodeAt(0)-0xAC00;
+  if(code<0||code>11171) return c;
+  const cho=["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  return cho[Math.floor(code/588)]+"**";
+};
+const maskPh = p=>(p||"").replace(/(\d{3})-(\d{4})-(\d{4})/,"$1-****-$3");
+const fmt    = d=>d?d.replace(/-/g,"."):"미설정";
+const dLeft  = e=>e?Math.ceil((new Date(e)-new Date())/86400000):null;
+const today  = ()=>new Date().toISOString().slice(0,10);
+const addD   = (d,n)=>{const r=new Date(d);r.setDate(r.getDate()+n);return r.toISOString().slice(0,10);};
+
+const agSt=a=>{
+  if(a.status==="draft")    return{t:"승인 대기",c:"#d97706",bg:"#fef3c7"};
+  if(a.status==="declined") return{t:"반려",     c:"#dc2626",bg:"#fee2e2"};
+  if(a.status==="passed")   return{t:"가결",     c:"#16a34a",bg:"#dcfce7"};
+  if(a.status==="rejected") return{t:"부결",     c:"#dc2626",bg:"#fee2e2"};
+  if(a.status==="closed")   return{t:"마감",     c:"#6b7280",bg:"#f3f4f6"};
+  const d=dLeft(a.endDate);
+  if(!a.endDate||d<0)       return{t:"기간종료", c:"#6b7280",bg:"#f3f4f6"};
+  return d<=3?{t:`D-${d}`,c:"#ea580c",bg:"#fff7ed"}:{t:`D-${d}`,c:BLUE,bg:LBLUE};
+};
+const vtSt=v=>{
+  if(v.status==="draft")  return{t:"준비중",c:"#d97706",bg:"#fef3c7"};
+  if(v.status==="closed") return{t:"마감",  c:"#6b7280",bg:"#f3f4f6"};
+  const d=dLeft(v.endDate);
+  if(!v.endDate||d<0)     return{t:"기간종료",c:"#6b7280",bg:"#f3f4f6"};
+  return d<=3?{t:`D-${d}`,c:"#ea580c",bg:"#fff7ed"}:{t:"진행중",c:"#16a34a",bg:"#dcfce7"};
+};
+const canVote    = v=>v.status==="active"&&!!v.endDate&&(dLeft(v.endDate)??-1)>=0;
+const isActiveAg = a=>a.status==="active"&&!!a.endDate&&(dLeft(a.endDate)??-1)>=0;
+
+const LS={
+  ag: {get:()=>{try{const r=localStorage.getItem("rp3_ag");return r?JSON.parse(r):SAMPLE_AG}catch{return SAMPLE_AG}},set:v=>localStorage.setItem("rp3_ag",JSON.stringify(v))},
+  vt: {get:()=>{try{const r=localStorage.getItem("rp3_vt");return r?JSON.parse(r):SAMPLE_VT}catch{return SAMPLE_VT}},set:v=>localStorage.setItem("rp3_vt",JSON.stringify(v))},
+  board:{get:()=>{try{const r=localStorage.getItem("rp3_board");return r?JSON.parse(r):SAMPLE_BOARD}catch{return SAMPLE_BOARD}},set:v=>localStorage.setItem("rp3_board",JSON.stringify(v))},
+  cfg:{get:()=>{try{const r=localStorage.getItem("rp5_cfg");return r?{...DEF_CFG,...JSON.parse(r)}:DEF_CFG}catch{return DEF_CFG}},set:v=>localStorage.setItem("rp5_cfg",JSON.stringify(v))},
+};
+
+/* 모바일 감지 훅 */
+function useIsMobile(){
+  const [m,setM]=useState(window.innerWidth<=768);
+  useEffect(()=>{
+    const h=()=>setM(window.innerWidth<=768);
+    window.addEventListener("resize",h);return()=>window.removeEventListener("resize",h);
+  },[]);
+  return m;
+}
+
+/* ══════════════════════════════════════
+   APP
+══════════════════════════════════════ */
+function App(){
+  const [page,setPage]   = useState("home");
+  const [sub,setSub]     = useState("list");
+  const [selId,setSelId] = useState(null);
+  const [ag,setAg]       = useState(LS.ag.get);
+  const [board,setBoard] = useState(LS.board.get);
+  const [vt,setVt]       = useState(LS.vt.get);
+  const [cfg,setCfg]     = useState(LS.cfg.get);
+  const [toast,setToast] = useState(null);
+  const [adminOk,setAdminOk]=useState(false);
+  const saveCfgToGas=(newCfg)=>{
+    if(GAS_URL!=='YOUR_GAS_URL_HERE')
+      gasPost({action:'setCfg',cfg:newCfg,adminPw:'admin1234'}).catch(()=>{});
+  };
+  const [adminPw,setAdminPw]=useState("");
+  const [adminErr,setAdminErr]=useState("");
+  const [menuOpen,setMenuOpen]=useState(false);
+  const [loading,setLoading]=useState(false);
+  const [showPolicy,setShowPolicy]=useState(false);
+  const isMobile=useIsMobile();
+
+  // GAS 연동: 최초 로딩 시 서버 데이터 가져오기
+  useEffect(()=>{
+    if(GAS_URL==='YOUR_GAS_URL_HERE') return; // URL 미설정 시 localStorage 사용
+    setLoading(true);
+    gasGet('getAll').then(res=>{
+      if(res.ok && res.data){
+        const d=res.data;
+        if(d.ag    && d.ag.length)    setAg(d.ag);
+        if(d.vt    && d.vt.length)    setVt(d.vt);
+        if(d.board && d.board.length) setBoard(d.board);
+        if(d.cfg   && Object.keys(d.cfg).length) setCfg(p=>({...p,...d.cfg,
+          periodDays:Number(d.cfg.periodDays||14),
+          minSigs:Number(d.cfg.minSigs||30)
+        }));
+      }
+    }).catch(()=>{}).finally(()=>setLoading(false));
+  },[]);
+
+  // localStorage 동기화 (GAS URL 미설정 시 폴백)
+  useEffect(()=>LS.ag.set(ag),[ag]);
+  useEffect(()=>LS.board.set(board),[board]);
+  useEffect(()=>LS.vt.set(vt),[vt]);
+  useEffect(()=>LS.cfg.set(cfg),[cfg]);
+
+  const notify=(msg,type="ok")=>{setToast({msg,type});setTimeout(()=>setToast(null),3000);};
+  const nav=(p,s="list",id=null)=>{setPage(p);setSub(s);setSelId(id);setMenuOpen(false);window.scrollTo(0,0);};
+
+  const patchAg =(id,p)=>{
+    setAg(prev=>prev.map(a=>a.id===id?{...a,...p}:a));
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'patchAg',id,patch:p,adminPw:'admin1234'}).catch(()=>{});
+  };
+  const addAg   =a=>{
+    setAg(p=>[a,...p]);
+    notify("안건이 접수되었습니다. 관리자 승인 후 게시됩니다.");
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addAg',data:a}).catch(()=>{});
+  };
+  const addAgSig=(id,sig)=>{
+    setAg(prev=>prev.map(a=>a.id===id?{...a,sigs:[...a.sigs,sig]}:a));
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addAgSig',id,sig}).catch(()=>{});
+  };
+  const addBoard =b=>{
+    setBoard(p=>[b,...p]);
+    notify("건의사항이 등록되었습니다.");
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addBoard',data:b}).catch(()=>{});
+  };
+  const patchVt =(id,p)=>{
+    setVt(prev=>prev.map(v=>v.id===id?{...v,...p}:v));
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'patchVt',id,patch:p,adminPw:'admin1234'}).catch(()=>{});
+  };
+  const addVt   =v=>{
+    setVt(p=>[v,...p]);
+    notify("투표/설문이 등록되었습니다.");
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addVt',data:v,adminPw:'admin1234'}).catch(()=>{});
+  };
+  const addVtE  =(id,e)=>{
+    setVt(prev=>prev.map(v=>v.id===id?{...v,votes:[...v.votes,e]}:v));
+    if(GAS_URL!=='YOUR_GAS_URL_HERE') gasPost({action:'addVtVote',id,vote:e}).catch(()=>{});
+  };
+
+  const selAg=ag.find(a=>a.id===selId)||null;
+  const selVt=vt.find(v=>v.id===selId)||null;
+
+  return(
+    <div style={{minHeight:"100vh",background:"#f7f8fa",position:"relative",overflowX:"hidden",display:"flex",flexDirection:"column"}}>
+      {/* 데시앙 CI 워터마크 - 실제 이미지 사용 */}
+      <div style={{position:"fixed",bottom:"20%",right:"-30px",
+        transform:"rotate(-45deg)",transformOrigin:"center center",
+        userSelect:"none",pointerEvents:"none",zIndex:0,opacity:0.02}}>
+        <img src="data:image/png;base64,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" width="570" alt="" style={{display:"block",mixBlendMode:"multiply",filter:"invert(1)"}}/>
+      </div>
+
+      <Header cfg={cfg} page={page} nav={nav} adminOk={adminOk} menuOpen={menuOpen} setMenuOpen={setMenuOpen} isMobile={isMobile}/>
+
+      <div className="pad-main" style={{maxWidth:1100,margin:"0 auto",position:"relative",zIndex:1,flex:1}}>
+        {page==="home"&&<Home ag={ag} vt={vt} cfg={cfg} board={board} nav={nav} isMobile={isMobile}/>}
+        {page==="vote"&&sub==="list"&&<VoteList vt={vt} nav={nav} isMobile={isMobile}/>}
+        {page==="vote"&&sub==="detail"&&selVt&&
+          <VoteDetail vt={selVt} onBack={()=>nav("vote")} onVote={(id,e)=>{addVtE(id,e);setVt(p=>p.map(v=>v.id===id?{...v,votes:[...v.votes,e]}:v));}} notify={notify} isMobile={isMobile}/>}
+        {page==="agenda"&&sub==="list"&&<AgendaList ag={ag} cfg={cfg} nav={nav} isMobile={isMobile}/>}
+        {page==="agenda"&&sub==="detail"&&selAg&&
+          <AgendaDetail ag={selAg} cfg={cfg} onBack={()=>nav("agenda")} onSign={(id,sig)=>{addAgSig(id,sig);setAg(p=>p.map(a=>a.id===id?{...a,sigs:[...a.sigs,sig]}:a));}} notify={notify} isMobile={isMobile}/>}
+        {page==="board"&&sub==="list"&&<BoardList board={board} nav={nav} isMobile={isMobile}/>}
+        {page==="board"&&sub==="detail"&&<BoardDetail post={board.find(b=>b.id===selId)} onBack={()=>nav("board")} isMobile={isMobile}/>}
+        {page==="board"&&sub==="write"&&<BoardWrite board={board} onAdd={addBoard} onBack={()=>nav("board")} notify={notify} isMobile={isMobile}/>}
+        {page==="agenda"&&sub==="submit"&&
+          <AgendaSubmit ag={ag} onAdd={addAg} onBack={()=>nav("agenda")} notify={notify} isMobile={isMobile}/>}
+        {page==="admin"&&(adminOk
+          ?<AdminPanel ag={ag} vt={vt} cfg={cfg} board={board} patchAg={patchAg} patchVt={patchVt} addVt={addVt} setCfg={setCfg} onBack={()=>nav("home")} notify={notify} isMobile={isMobile}/>
+          :<AdminLogin pw={adminPw} setPw={setAdminPw} err={adminErr} onLogin={()=>{
+              if(GAS_URL!=='YOUR_GAS_URL_HERE'){
+                gasPost({action:'adminLogin',pw:adminPw}).then(res=>{
+                  if(res.ok && res.data){setAdminOk(true);setAdminErr("");}
+                  else setAdminErr("비밀번호가 올바르지 않습니다.");
+                }).catch(()=>{
+                  // GAS 실패 시 로컬 폴백
+                  if(adminPw===ADM_PW){setAdminOk(true);setAdminErr("");}
+                  else setAdminErr("비밀번호가 올바르지 않습니다.");
+                });
+              } else {
+                if(adminPw===ADM_PW){setAdminOk(true);setAdminErr("");}
+                else setAdminErr("비밀번호가 올바르지 않습니다.");
+              }
+            }}/>
+        )}
+      </div>
+
+      <Footer onPolicy={()=>setShowPolicy(true)} isMobile={isMobile} cfg={cfg} onAdminClick={(p)=>{ if(p==="board") nav("board"); else nav("admin"); }}/>
+      {showPolicy&&<PolicyModal onClose={()=>setShowPolicy(false)}/>}
+      {toast&&<Toast msg={toast.msg} type={toast.type}/>}
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   헤더 (모바일 햄버거 메뉴)
+══════════════════════════════════════ */
+function Header({cfg,page,nav,adminOk,menuOpen,setMenuOpen,isMobile}){
+  const navItems=[
+    {p:"vote",  l:"📊 자문단"},
+    {p:"agenda",l:"📋 안건 제안"},
+    {p:"board", l:"📬 건의사항"},
+  ];
+  return(
+    <>
+      <header style={{background:"#fff",borderBottom:"1px solid #e5e7eb",position:"sticky",top:0,zIndex:200}}>
+        <div style={{maxWidth:1100,margin:"0 auto",padding:"0 16px",height:52,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          {/* 로고 */}
+          <div style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}} onClick={()=>nav("home")}>
+            <div style={{width:34,height:34,borderRadius:7,background:"#1f2937",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",overflow:"hidden",padding:2}}>
+              <img src="data:image/png;base64,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" style={{width:"100%",height:"100%",objectFit:"contain",mixBlendMode:"screen",opacity:0.9}}/>
+            </div>
+            <div>
+              <div style={{fontWeight:800,fontSize:isMobile?12:13,color:"#111827",letterSpacing:"-0.3px",lineHeight:1}}>{cfg.title}</div>
+              {!isMobile&&<div style={{fontSize:10,color:"#9ca3af",marginTop:1}}>{cfg.sub}</div>}
+            </div>
+          </div>
+
+          {/* PC 네비 */}
+          {!isMobile&&(
+            <nav style={{display:"flex",alignItems:"center",gap:0}}>
+              {[
+                {p:"vote",  l:"📊 자문단"},
+                {p:"agenda",l:"📋 안건 제안"},
+                {p:"board", l:"📬 건의사항"},
+              ].map(({p,l})=>(
+                <button key={p} onClick={()=>nav(p)}
+                  style={{padding:"8px 18px",borderRadius:0,border:"none",cursor:"pointer",
+                    fontSize:14,fontWeight:page===p?700:500,background:"transparent",
+                    color:page===p?BLUE:"#6b7280",
+                    borderBottom:page===p?`2px solid ${BLUE}`:"2px solid transparent",
+                    whiteSpace:"nowrap"}}>
+                  {l}
+                </button>
+              ))}
+            </nav>
+          )}
+
+          {/* 모바일 햄버거 */}
+          {isMobile&&(
+            <button onClick={()=>setMenuOpen(!menuOpen)}
+              style={{background:"none",border:"none",cursor:"pointer",padding:8,display:"flex",flexDirection:"column",gap:5}}>
+              <span style={{display:"block",width:22,height:2,background:menuOpen?"transparent":"#374151",transition:"all .2s"}}/>
+              <span style={{display:"block",width:22,height:2,background:"#374151",transform:menuOpen?"rotate(45deg) translate(5px,5px)":"none",transition:"all .2s"}}/>
+              <span style={{display:"block",width:22,height:2,background:"#374151",transform:menuOpen?"rotate(-45deg) translate(5px,-5px)":"none",transition:"all .2s"}}/>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* 모바일 드로어 메뉴 */}
+      {isMobile&&menuOpen&&(
+        <div className="drawer" onClick={()=>setMenuOpen(false)}>
+          <div className="drawer-inner" onClick={e=>e.stopPropagation()}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"14px 16px 10px",borderBottom:"1px solid #f3f4f6"}}>
+              <span style={{fontWeight:800,fontSize:15,color:"#111827"}}>{cfg.title}</span>
+              <button onClick={()=>setMenuOpen(false)} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#9ca3af"}}>✕</button>
+            </div>
+            {navItems.map(({p,l,admin})=>(
+              <button key={p} onClick={()=>nav(p)}
+                style={{display:"block",width:"100%",textAlign:"left",padding:"15px 20px",border:"none",
+                  background:page===p?"#f9fafb":"transparent",
+                  borderLeft:page===p?`3px solid ${BLUE}`:"3px solid transparent",
+                  cursor:"pointer",fontSize:16,fontWeight:page===p?700:400,
+                  color:page===p?(admin?"#92400e":BLUE):"#374151"}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ══════════════════════════════════════
+   홈
+══════════════════════════════════════ */
+function Home({ag,vt,cfg,board,nav,isMobile}){
+  const [sortAg,setSortAg]=useState("latest");
+  const [sortVt,setSortVt]=useState("latest");
+  const vtActive=vt.filter(v=>canVote(v)).length;
+  const agDraft =ag.filter(a=>a.status==="draft").length;
+  const agActive=ag.filter(a=>isActiveAg(a)).length;
+  const agPassed=ag.filter(a=>a.status==="passed").length;
+  const recentVt=[...vt.filter(v=>canVote(v))].sort((a,b)=>sortVt==="latest"?b.createdAt.localeCompare(a.createdAt):b.votes.length-a.votes.length).slice(0,3);
+  const recentAg=[...ag.filter(a=>isActiveAg(a))].sort((a,b)=>sortAg==="latest"?b.createdAt.localeCompare(a.createdAt):b.sigs.length-a.sigs.length).slice(0,3);
+  return(
+    <div>
+      {cfg.notice&&(
+        <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:8,padding:"11px 14px",marginBottom:20,display:"flex",alignItems:"flex-start",gap:8}}>
+          <span style={{color:BLUE,fontWeight:700,fontSize:12,flexShrink:0,marginTop:1}}>공지</span>
+          <span style={{fontSize:13,color:"#374151",lineHeight:1.6}}>{cfg.notice}</span>
+        </div>
+      )}
+
+            {/* 히어로 배너 - 안 2 */}
+      <div style={{background:LBLUE,border:"1px solid #bfdbfe",borderRadius:12,padding:isMobile?"22px 18px":"28px 32px",marginBottom:24}}>
+        {/* 상단: 타이틀 + 안건신청 버튼 */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,marginBottom:20,flexWrap:"wrap"}}>
+          <div>
+            <h2 style={{fontSize:isMobile?17:20,fontWeight:800,color:"#1e3a8a",lineHeight:1.35,letterSpacing:"-0.3px",marginBottom:4}}>
+              숲속마을 자연앤데시앙 입주민 참여 플랫폼
+            </h2>
+            <p style={{fontSize:13,color:"#3b82f6",lineHeight:1.6}}>{cfg.sub}</p>
+          </div>
+          <button onClick={()=>nav("agenda","submit")}
+            style={{padding:"9px 20px",borderRadius:8,border:"none",background:"#1f2937",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>
+            + 안건 신청
+          </button>
+        </div>
+        {/* 3카드 바로가기 */}
+        <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"repeat(3,1fr)",gap:10}}>
+          {[
+            {icon:"📋",title:"안건 제안",desc:"입주자대표회의에 안건을 직접 상정",stat:null,page:"agenda",isAgenda:true},
+            {icon:"📊",title:"정책 자문",desc:"투표·설문에 참여해 정책 결정에 목소리를",stat:null,page:"vote",isVote:true},
+            {icon:"📬",title:"건의사항",desc:"비공개로 입주자대표회의에 건의사항 전달",stat:"총 "+(board||[]).length+"건 접수",page:"board"},
+          ].map(({icon,title,desc,stat,page,isAgenda,isVote})=>(
+            <div key={page} className="c-card" onClick={()=>nav(page)}
+              style={{background:"#fff",borderRadius:10,border:"1px solid #dbeafe",padding:"16px 18px",cursor:"pointer"}}>
+              <div style={{fontSize:22,marginBottom:8}}>{icon}</div>
+              <div style={{fontWeight:700,fontSize:14,color:"#1e40af",marginBottom:4}}>{title}</div>
+              <div style={{fontSize:12,color:"#6b7280",lineHeight:1.6,marginBottom:10}}>{desc}</div>
+              {isAgenda?(
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4,marginTop:4}}>
+                  {[
+                    {l:"검토중",v:agDraft,  c:"#d97706",bg:"#fef3c7"},
+                    {l:"의견수렴",  v:agActive, c:BLUE,     bg:LBLUE},
+                    {l:"완료",   v:ag.filter(a=>["passed","rejected","closed"].includes(a.status)).length,c:"#16a34a",bg:"#dcfce7"},
+                  ].map(({l,v,c,bg})=>(
+                    <div key={l} style={{textAlign:"center",background:bg,borderRadius:6,padding:"5px 4px"}}>
+                      <div style={{fontWeight:800,fontSize:16,color:c,lineHeight:1}}>{v}</div>
+                      <div style={{fontSize:10,color:c,marginTop:2,opacity:.8}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              ):
+              isVote?(
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4,marginTop:4}}>
+                  {[
+                    {l:"진행중",v:vt.filter(v=>canVote(v)).length,          c:"#16a34a",bg:"#dcfce7"},
+                    {l:"준비중",v:vt.filter(v=>v.status==="draft").length,    c:"#d97706",bg:"#fef3c7"},
+                    {l:"종료",  v:vt.filter(v=>!canVote(v)&&v.status!=="draft").length,c:"#6b7280",bg:"#f3f4f6"},
+                  ].map(({l,v,c,bg})=>(
+                    <div key={l} style={{textAlign:"center",background:bg,borderRadius:6,padding:"5px 4px"}}>
+                      <div style={{fontWeight:800,fontSize:16,color:c,lineHeight:1}}>{v}</div>
+                      <div style={{fontSize:10,color:c,marginTop:2,opacity:.8}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+              ):<div style={{fontSize:11,color:"#93c5fd",fontWeight:500}}>{stat}</div>}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 최근 현황 */}
+      <div className="home-bottom">
+          {/* 안건 */}
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingBottom:10,borderBottom:"2px solid #111827"}}>
+            <span style={{fontWeight:800,fontSize:15,color:"#111827"}}>의견수렴 안건</span>
+            <div style={{display:"flex",gap:5}}>
+              {["최신순","찬성순"].map(s=>(
+                <button key={s} onClick={()=>setSortAg(s==="최신순"?"latest":"count")}
+                  style={{padding:"3px 9px",borderRadius:20,border:`1px solid ${sortAg===(s==="최신순"?"latest":"count")?"#111827":"#d1d5db"}`,cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:sortAg===(s==="최신순"?"latest":"count")?"#111827":"#fff",
+                    color:sortAg===(s==="최신순"?"latest":"count")?"#fff":"#6b7280"}}>
+                  ✓ {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          {recentAg.length===0?<EmptyMsg msg="의견수렴 중인 안건이 없습니다."/>:
+            recentAg.map(a=>(
+              <div key={a.id} className="c-card" onClick={()=>nav("agenda","detail",a.id)}
+                style={{background:"#fff",borderRadius:8,padding:"14px 16px",border:"1px solid #e5e7eb",marginBottom:8,cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
+                <div style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
+                  <Tag color={catTag(a.cat).color} bg={catTag(a.cat).background}>{a.cat}</Tag>
+                  <span style={{fontSize:11,fontWeight:600,color:BLUE}}>● 수렴중</span>
+                  <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>✋ {a.sigs.length}명</span>
+                </div>
+                <div style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:2,lineHeight:1.4}}>{a.title}</div>
+                <div style={{fontSize:11,color:"#9ca3af"}}>마감 {fmt(a.endDate)}</div>
+              </div>
+            ))}
+          <MoreBtn onClick={()=>nav("agenda")}/>
+        </div>
+      {/* 자문단 */}
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,paddingBottom:10,borderBottom:"2px solid #111827"}}>
+            <span style={{fontWeight:800,fontSize:15,color:"#111827"}}>진행중 정책 자문</span>
+            <div style={{display:"flex",gap:5}}>
+              {["최신순","참여순"].map(s=>(
+                <button key={s} onClick={()=>setSortVt(s==="최신순"?"latest":"count")}
+                  style={{padding:"3px 9px",borderRadius:20,border:`1px solid ${sortVt===(s==="최신순"?"latest":"count")?"#111827":"#d1d5db"}`,cursor:"pointer",fontSize:11,fontWeight:600,
+                    background:sortVt===(s==="최신순"?"latest":"count")?"#111827":"#fff",
+                    color:sortVt===(s==="최신순"?"latest":"count")?"#fff":"#6b7280"}}>
+                  ✓ {s}
+                </button>
+              ))}
+            </div>
+          </div>
+          {recentVt.length===0?<EmptyMsg msg="진행중인 자문이 없습니다."/>:
+            recentVt.map(v=>(
+              <div key={v.id} className="c-card" onClick={()=>nav("vote","detail",v.id)}
+                style={{background:"#fff",borderRadius:8,padding:"14px 16px",border:"1px solid #e5e7eb",marginBottom:8,cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,.04)"}}>
+                <div style={{display:"flex",gap:6,marginBottom:6,alignItems:"center"}}>
+                  <Tag color={v.type==="찬반"?"#16a34a":"#7c3aed"} bg={v.type==="찬반"?"#dcfce7":"#f5f3ff"}>{v.type}</Tag>
+                  <span style={{fontSize:11,fontWeight:600,color:"#16a34a"}}>● 진행중</span>
+                  <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{v.votes.length}명</span>
+                </div>
+                <div style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:2,lineHeight:1.4}}>{v.title}</div>
+                <div style={{fontSize:11,color:"#9ca3af"}}>마감 {fmt(v.endDate)}</div>
+              </div>
+            ))}
+          <MoreBtn onClick={()=>nav("vote")}/>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   자문단 목록
+══════════════════════════════════════ */
+function VoteList({vt,nav,isMobile}){
+  const [flt,setFlt]=useState("전체");
+  const [sort,setSort]=useState("latest");
+  const items=[...vt.filter(v=>flt==="전체"||(flt==="진행중"&&canVote(v))||(flt==="종료"&&!canVote(v)))]
+    .sort((a,b)=>sort==="latest"?b.createdAt.localeCompare(a.createdAt):b.votes.length-a.votes.length);
+  return(
+    <div>
+      <PageHero icon="📊" title="정책 자문" desc="입주자대표회의가 주민 여러분의 의견을 직접 묻고 정책 결정에 반영합니다." isMobile={isMobile}/>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:8,flexWrap:"wrap"}}>
+        <div className="scroll-x">{["전체","진행중","종료"].map(f=><FBtn key={f} active={flt===f} onClick={()=>setFlt(f)}>{f}</FBtn>)}</div>
+        <div style={{display:"flex",gap:5,flexShrink:0}}>
+          {["최신순","참여순"].map(s=>(
+            <SortBtn key={s} active={sort===(s==="최신순"?"latest":"count")} onClick={()=>setSort(s==="최신순"?"latest":"count")}>✓ {s}</SortBtn>
+          ))}
+        </div>
+      </div>
+      <div style={{fontSize:12,color:"#9ca3af",marginBottom:10}}>총 {items.length}건</div>
+      {items.length===0?<EmptyMsg msg="해당 자문이 없습니다."/>:
+        <div className="grid-auto">
+          {items.map(v=><VoteCard key={v.id} v={v} onClick={()=>nav("vote","detail",v.id)}/>)}
+        </div>}
+    </div>
+  );
+}
+
+function VoteCard({v,onClick}){
+  const si=vtSt(v);
+  const total=v.votes.length;
+  const tally=v.options.reduce((a,o)=>({...a,[o]:v.votes.filter(x=>x.choice===o).length}),{});
+  const showBar=v.showResult==="always"&&total>0;
+  return(
+    <div className="c-card" onClick={onClick}
+      style={{background:"#fff",borderRadius:10,padding:"18px",border:"1px solid #e5e7eb",cursor:"pointer",boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+      <div style={{display:"flex",gap:6,marginBottom:10,alignItems:"center"}}>
+        <Tag color={v.type==="찬반"?"#16a34a":"#7c3aed"} bg={v.type==="찬반"?"#dcfce7":"#f5f3ff"}>{v.type}</Tag>
+        <Tag color={si.c} bg={si.bg}>{si.t}</Tag>
+        <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{total}명</span>
+      </div>
+      <div style={{fontWeight:700,fontSize:15,color:"#111827",marginBottom:5,lineHeight:1.4}}>{v.title}</div>
+      <div style={{fontSize:13,color:"#6b7280",lineHeight:1.5,marginBottom:12}}>{v.desc.slice(0,60)}…</div>
+      {showBar&&(
+        <div style={{marginBottom:10}}>
+          {v.options.map(o=>{
+            const cnt=tally[o]||0,pct=total>0?Math.round(cnt/total*100):0;
+            return(<div key={o} style={{marginBottom:6}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,color:"#374151",marginBottom:2}}>
+                <span>{o}</span><span style={{fontWeight:600}}>{pct}%</span>
+              </div>
+              <div style={{height:4,background:"#f3f4f6",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:`${pct}%`,background:BLUE,borderRadius:2}}/>
+              </div>
+            </div>);
+          })}
+        </div>
+      )}
+      <div style={{fontSize:11,color:"#9ca3af",borderTop:"1px solid #f3f4f6",paddingTop:8}}>마감 {fmt(v.endDate)}</div>
+    </div>
+  );
+}
+
+/* ── 투표 상세 ── */
+function VoteDetail({vt,onBack,onVote,notify,isMobile}){
+  const [showP,setShowP]=useState(false);
+  const [showF,setShowF]=useState(false);
+  const [done, setDone] =useState(false);
+  const si=vtSt(vt);
+  const ok=canVote(vt);
+  const total=vt.votes.length;
+  const tally=vt.options.reduce((a,o)=>({...a,[o]:vt.votes.filter(x=>x.choice===o).length}),{});
+  const showRes=vt.showResult==="always"||(vt.showResult==="after"&&!ok);
+  const maxCnt=Math.max(...Object.values(tally),1);
+  return(
+    <div style={{maxWidth:680,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      {showP&&<PrivacyModal purpose="투표·설문 참여" onOk={()=>{setShowP(false);setShowF(true);}} onCancel={()=>setShowP(false)}/>}
+      <div className="detail-pad" style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",boxShadow:"0 1px 8px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:14}}>
+          <Tag color={vt.type==="찬반"?"#16a34a":"#7c3aed"} bg={vt.type==="찬반"?"#dcfce7":"#f5f3ff"}>{vt.type}</Tag>
+          <Tag color={si.c} bg={si.bg}>{si.t}</Tag>
+          <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{vt.id}</span>
+        </div>
+        <h2 style={{fontSize:isMobile?18:22,fontWeight:800,color:"#111827",marginBottom:8,letterSpacing:"-0.3px"}}>{vt.title}</h2>
+        <div style={{fontSize:12,color:"#9ca3af",marginBottom:18}}>📅 {fmt(vt.startDate)} ~ {fmt(vt.endDate)}&nbsp;·&nbsp;✋ {total}명 참여</div>
+        <p style={{fontSize:14,color:"#374151",lineHeight:1.8,marginBottom:24,padding:"14px 16px",background:"#f9fafb",borderRadius:8,borderLeft:`3px solid ${BLUE}`}}>{vt.desc}</p>
+
+        {showRes&&total>0&&(
+          <div style={{marginBottom:24}}>
+            <div style={{fontWeight:700,color:"#111827",fontSize:14,marginBottom:14}}>집계 결과</div>
+            {vt.options.map(o=>{
+              const cnt=tally[o]||0,pct=total>0?Math.round(cnt/total*100):0;
+              const isTop=cnt===maxCnt&&cnt>0;
+              return(
+                <div key={o} style={{marginBottom:10,padding:"11px 14px",background:isTop?LBLUE:"#f9fafb",borderRadius:8,border:`1px solid ${isTop?"#bfdbfe":"#e5e7eb"}`}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
+                    <span style={{fontWeight:isTop?700:400,fontSize:14,color:isTop?BLUE:"#374151"}}>{isTop?"1위  ":""}{o}</span>
+                    <span style={{fontWeight:700,fontSize:14,color:isTop?BLUE:"#6b7280"}}>{cnt}명 ({pct}%)</span>
+                  </div>
+                  <div style={{height:5,background:"rgba(0,0,0,.06)",borderRadius:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${pct}%`,background:isTop?BLUE:"#d1d5db",borderRadius:3}}/>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {vt.showResult==="after"&&ok&&<InfoBox msg="투표 결과는 의견수렴 기간 종료 후 공개됩니다."/>}
+        {ok&&!showF&&!done&&<PBtn onClick={()=>setShowP(true)}>의견 선택하기 →</PBtn>}
+        {done&&<SuccessBox msg="의견이 정상적으로 제출되었습니다. 감사합니다."/>}
+        {!ok&&vt.status==="active"&&<WarnBox msg="의견수렴 기간이 종료되었습니다."/>}
+        {showF&&<VoteForm vt={vt} onSubmit={e=>{onVote(vt.id,e);setShowF(false);setDone(true);notify("의견이 제출되었습니다.");}} onCancel={()=>setShowF(false)} notify={notify} isMobile={isMobile}/>}
+      </div>
+    </div>
+  );
+}
+
+function VoteForm({vt,onSubmit,onCancel,notify,isMobile}){
+  const [f,setF]=useState({dong:"",ho:"",name:"",phone:"",choice:""});
+  const [verifying,setVerifying]=useState(false);
+  const submit=async()=>{
+    if(!f.dong||!f.ho||!f.name){notify("동호수와 이름을 입력해주세요.","err");return;}
+    if(!f.choice){notify("의견 항목을 선택해주세요.","err");return;}
+    if(vt.votes.find(v=>v.dong===f.dong&&v.ho===f.ho)){notify("이미 의견을 제출한 세대입니다.","err");return;}
+    setVerifying(true);
+    const ok=await verifyMember(f.dong,f.ho,f.name);
+    setVerifying(false);
+    if(!ok){notify("입주민 정보가 일치하지 않습니다. 동·호수·이름을 확인해주세요.","err");return;}
+    onSubmit({dong:f.dong,ho:f.ho,name:f.name,phone:maskPh(f.phone||""),choice:f.choice,date:today()});
+  };
+  return(
+    <div style={{marginTop:18,background:"#f9fafb",borderRadius:10,padding:"18px",border:"1px solid #e5e7eb"}}>
+      <div style={{fontWeight:700,color:"#111827",marginBottom:14,fontSize:14}}>동호수 인증 후 의견 제출</div>
+      <div style={{display:"flex",gap:10,marginBottom:10}}>
+        <Fld label="동"><input style={S.inp} placeholder="예: 101"  value={f.dong}  onChange={e=>setF(p=>({...p,dong:e.target.value}))}/></Fld>
+        <Fld label="호"><input style={S.inp} placeholder="예: 1502" value={f.ho}    onChange={e=>setF(p=>({...p,ho:e.target.value}))}/></Fld>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <Fld label="이름">    <input style={S.inp} placeholder="실명"          value={f.name}  onChange={e=>setF(p=>({...p,name:e.target.value}))}/></Fld>
+        <Fld label="전화번호"><input style={S.inp} placeholder="010-0000-0000 (선택)" value={f.phone} onChange={e=>setF(p=>({...p,phone:e.target.value}))}/></Fld>
+      </div>
+      <Fld label="의견 선택">
+        <div style={{display:"flex",flexDirection:"column",gap:8,marginTop:4}}>
+          {vt.options.map(o=>(
+            <label key={o} onClick={()=>setF(p=>({...p,choice:o}))}
+              style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",borderRadius:8,
+                border:`1.5px solid ${f.choice===o?BLUE:"#e5e7eb"}`,
+                background:f.choice===o?LBLUE:"#fff",cursor:"pointer",
+                fontWeight:f.choice===o?600:400,color:f.choice===o?BLUE:"#374151",
+                minHeight:44}}>
+              <div style={{width:16,height:16,borderRadius:"50%",border:`2px solid ${f.choice===o?BLUE:"#d1d5db"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {f.choice===o&&<div style={{width:7,height:7,borderRadius:"50%",background:BLUE}}/>}
+              </div>
+              {o}
+            </label>
+          ))}
+        </div>
+      </Fld>
+      <div className="btn-row-mobile" style={{display:"flex",gap:8,marginTop:16}}>
+        <PBtn onClick={submit}>{verifying?"인증중...":"제출하기"}</PBtn>
+        <GBtn onClick={onCancel}>취소</GBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   안건 목록
+══════════════════════════════════════ */
+function AgendaList({ag,cfg,nav,isMobile}){
+  const [cat,setCat]=useState("전체");
+  const [st, setSt] =useState("전체");
+  const [sort,setSort]=useState("latest");
+  const filtered=[...ag.filter(a=>{
+    const cOk=cat==="전체"||a.cat===cat;
+    const sOk=st==="전체"||(st==="검토중"&&a.status==="draft")||(st==="의견수렴"&&isActiveAg(a))||(st==="완료"&&["passed","rejected","closed"].includes(a.status));
+    return cOk&&sOk;
+  })].sort((a,b)=>sort==="latest"?b.createdAt.localeCompare(a.createdAt):b.sigs.length-a.sigs.length);
+  return(
+    <div>
+      <PageHero icon="📋" title="안건 제안" desc="입주자대표회의에 상정할 안건을 제안하고 이웃의 찬성을 모아보세요." isMobile={isMobile}>
+        <button onClick={()=>nav("agenda","submit")}
+          style={{padding:"9px 18px",borderRadius:8,border:"none",background:"#1f2937",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}}>
+          + 안건 신청
+        </button>
+      </PageHero>
+      <div style={{background:"#fff",border:"1px solid #e5e7eb",borderRadius:8,padding:"10px 14px",marginBottom:12}}>
+        <span style={{fontSize:11,color:"#9ca3af",fontWeight:600,display:"block",marginBottom:6}}>분야</span>
+        <div className="scroll-x">
+          {["전체",...CATS].map(c=><FBtn key={c} active={cat===c} onClick={()=>setCat(c)} small>{c}</FBtn>)}
+        </div>
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8,flexWrap:"wrap"}}>
+        <div className="scroll-x">{["전체","검토중","의견수렴","완료"].map(s=><FBtn key={s} active={st===s} onClick={()=>setSt(s)}>{s}</FBtn>)}</div>
+        <div style={{display:"flex",gap:5,flexShrink:0}}>
+          {["최신순","찬성순"].map(s=>(
+            <SortBtn key={s} active={sort===(s==="최신순"?"latest":"count")} onClick={()=>setSort(s==="최신순"?"latest":"count")}>✓ {s}</SortBtn>
+          ))}
+        </div>
+      </div>
+      <div style={{fontSize:12,color:"#9ca3af",marginBottom:10}}>총 {filtered.length}건</div>
+      {filtered.length===0?<EmptyMsg msg="해당 안건이 없습니다."/>:
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {filtered.map(a=><AgendaRow key={a.id} a={a} cfg={cfg} onClick={()=>nav("agenda","detail",a.id)} isMobile={isMobile}/>)}
+        </div>}
+    </div>
+  );
+}
+
+function AgendaRow({a,cfg,onClick,isMobile}){
+  const si=agSt(a);
+  const isDraft=a.status==="draft";
+  const total=a.sigs.length,max=cfg.minSigs||1;
+  const p=Math.min(100,Math.round(total/max*100));
+  const descShow=isDraft?a.desc.slice(0,Math.max(1,Math.floor(a.desc.length*.08))):a.desc.slice(0,70);
+  return(
+    <div className="c-card" onClick={onClick}
+      style={{background:"#fff",borderRadius:10,padding:"16px",border:`1px solid ${isDraft?"#fde68a":"#e5e7eb"}`,cursor:"pointer",
+        boxShadow:"0 1px 4px rgba(0,0,0,.04)",display:"flex",gap:12,alignItems:"flex-start"}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",gap:6,marginBottom:7,alignItems:"center",flexWrap:"wrap"}}>
+          <Tag color={catTag(a.cat).color} bg={catTag(a.cat).background}>{a.cat}</Tag>
+          <Tag color={si.c} bg={si.bg}>{si.t}</Tag>
+          {!isMobile&&<span style={{fontSize:11,color:"#9ca3af",marginLeft:"auto"}}>📍 {maskDong(a.submitter.dong)}동 {maskHo(a.submitter.ho)}호 {maskName(a.submitter.name)}</span>}
+        </div>
+        <div style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:3,lineHeight:1.4}}>{a.title}</div>
+        <div style={{position:"relative",overflow:"hidden",maxHeight:34}}>
+          <div style={{fontSize:12,color:"#6b7280",lineHeight:1.5}}>{descShow}…</div>
+          {isDraft&&<div style={{position:"absolute",inset:0,backdropFilter:"blur(5px)",background:"linear-gradient(90deg,transparent,rgba(255,255,255,.92) 55%)",display:"flex",alignItems:"center",justifyContent:"flex-end"}}>
+            <span style={{fontSize:10,color:"#92400e",background:"#fef9c3",borderRadius:4,padding:"1px 7px",fontWeight:600,border:"1px solid #fde68a",whiteSpace:"nowrap"}}>승인 대기</span>
+          </div>}
+        </div>
+      </div>
+      {!isDraft&&(
+        <div style={{textAlign:"right",flexShrink:0,minWidth:isMobile?60:72}}>
+          <div style={{fontSize:isMobile?18:22,fontWeight:800,color:p>=100?"#16a34a":BLUE,lineHeight:1}}>{total}</div>
+          <div style={{fontSize:10,color:"#9ca3af",marginTop:1}}>/{max}명</div>
+          <div style={{marginTop:6,height:4,background:"#f3f4f6",borderRadius:2,overflow:"hidden",width:"100%"}}>
+            <div style={{height:"100%",width:`${p}%`,background:p>=100?"#16a34a":BLUE,borderRadius:2}}/>
+          </div>
+          {!isMobile&&a.endDate&&<div style={{fontSize:10,color:"#9ca3af",marginTop:3}}>~{fmt(a.endDate)}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── 안건 상세 ── */
+function AgendaDetail({ag,cfg,onBack,onSign,notify,isMobile}){
+  const [showP,setShowP]=useState(false);
+  const [showF,setShowF]=useState(false);
+  const si=agSt(ag);
+  const canSign=isActiveAg(ag);
+  const isDraft=ag.status==="draft";
+  const total=ag.sigs.length,max=cfg.minSigs||1;
+  const p=Math.min(100,Math.round(total/max*100));
+  return(
+    <div style={{maxWidth:680,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      {showP&&<PrivacyModal purpose="안건 찬성" onOk={()=>{setShowP(false);setShowF(true);}} onCancel={()=>setShowP(false)}/>}
+      <div className="detail-pad" style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",boxShadow:"0 1px 8px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:14}}>
+          <Tag color={catTag(ag.cat).color} bg={catTag(ag.cat).background}>{ag.cat}</Tag>
+          <Tag color={si.c} bg={si.bg}>{si.t}</Tag>
+          <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{ag.id}</span>
+        </div>
+        <h2 style={{fontSize:isMobile?18:22,fontWeight:800,color:"#111827",marginBottom:8,letterSpacing:"-0.3px"}}>{ag.title}</h2>
+        <div style={{fontSize:12,color:"#9ca3af",marginBottom:18,display:"flex",gap:12,flexWrap:"wrap"}}>
+          <span>👤 {maskDong(ag.submitter.dong)}동 {maskHo(ag.submitter.ho)}호 {maskName(ag.submitter.name)}</span>
+          {ag.endDate?<span>📅 {fmt(ag.approvedAt)} ~ <b style={{color:"#374151"}}>{fmt(ag.endDate)}</b></span>
+            :<span style={{color:"#d97706"}}>📅 승인 대기중</span>}
+        </div>
+        {isDraft?(
+          <WarnBox msg="🔒 관리자 승인 대기중입니다. 승인 완료 후 전체 내용 및 찬성 제출이 가능합니다."/>
+        ):(
+          <>
+            <p style={{fontSize:14,color:"#374151",lineHeight:1.8,marginBottom:22,padding:"14px 16px",background:"#f9fafb",borderRadius:8,borderLeft:"3px solid #e5e7eb"}}>{ag.desc}</p>
+            {cfg.minSigs>0&&(
+              <div style={{background:"#f9fafb",borderRadius:8,padding:"14px 18px",marginBottom:22}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,fontSize:13}}>
+                  <span style={{fontWeight:600,color:"#374151"}}>찬성 현황</span>
+                  <span style={{fontWeight:700,color:p>=100?"#16a34a":BLUE}}>{total}명 / {max}명 ({p}%)</span>
+                </div>
+                <div style={{height:7,background:"#e5e7eb",borderRadius:4,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:`${p}%`,background:p>=100?"#16a34a":BLUE,borderRadius:4}}/>
+                </div>
+              </div>
+            )}
+            {canSign&&!showF&&<PBtn onClick={()=>setShowP(true)}>✋ 이 안건에 찬성합니다</PBtn>}
+            {!canSign&&ag.status==="active"&&<WarnBox msg="의견수렴 기간이 종료되었습니다."/>}
+            {showF&&<AgSignForm existing={ag.sigs} onSign={sig=>{onSign(ag.id,sig);setShowF(false);notify("찬성 의견이 제출되었습니다.");}} onCancel={()=>setShowF(false)} notify={notify} isMobile={isMobile}/>}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AgSignForm({existing,onSign,onCancel,notify,isMobile}){
+  const [f,setF]=useState({dong:"",ho:"",name:"",phone:""});
+  const [verifying,setVerifying]=useState(false);
+  const submit=async()=>{
+    if(!f.dong||!f.ho||!f.name){notify("동호수와 이름을 입력해주세요.","err");return;}
+    if(existing.find(s=>s.dong===f.dong&&s.ho===f.ho)){notify("이미 의견을 제출한 세대입니다.","err");return;}
+    setVerifying(true);
+    const ok=await verifyMember(f.dong,f.ho,f.name);
+    setVerifying(false);
+    if(!ok){notify("입주민 정보가 일치하지 않습니다. 동·호수·이름을 확인해주세요.","err");return;}
+    onSign({dong:f.dong,ho:f.ho,name:f.name,phone:maskPh(f.phone||""),date:today()});
+  };
+  return(
+    <div style={{marginTop:18,background:"#f9fafb",borderRadius:10,padding:"18px",border:"1px solid #e5e7eb"}}>
+      <div style={{fontWeight:700,color:"#111827",marginBottom:14,fontSize:14}}>동호수 인증 후 찬성 제출</div>
+      <div style={{display:"flex",gap:10,marginBottom:10}}>
+        <Fld label="동"><input style={S.inp} placeholder="예: 101"  value={f.dong}  onChange={e=>setF(p=>({...p,dong:e.target.value}))}/></Fld>
+        <Fld label="호"><input style={S.inp} placeholder="예: 1502" value={f.ho}    onChange={e=>setF(p=>({...p,ho:e.target.value}))}/></Fld>
+      </div>
+      <div style={{display:"flex",gap:10,marginBottom:14}}>
+        <Fld label="이름">    <input style={S.inp} placeholder="실명"          value={f.name}  onChange={e=>setF(p=>({...p,name:e.target.value}))}/></Fld>
+        <Fld label="전화번호"><input style={S.inp} placeholder="010-0000-0000 (선택)" value={f.phone} onChange={e=>setF(p=>({...p,phone:e.target.value}))}/></Fld>
+      </div>
+      <div className="btn-row-mobile" style={{display:"flex",gap:8}}>
+        <PBtn onClick={submit}>{verifying?"인증중...":"제출하기"}</PBtn>
+        <GBtn onClick={onCancel}>취소</GBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ── 안건 신청 ── */
+function AgendaSubmit({ag,onAdd,onBack,notify,isMobile}){
+  const [step,setStep]=useState("privacy");
+  const [f,setF]=useState({title:"",desc:"",cat:"",dong:"",ho:"",name:"",phone:""});
+  const [err,setErr]=useState({});
+  if(step==="privacy") return(
+    <div style={{maxWidth:640,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      <PrivacyModal purpose="안건 신청" onOk={()=>setStep("form")} onCancel={onBack} inline/>
+    </div>
+  );
+  const validate=()=>{
+    const e={};
+    if(!f.title.trim())e.title="입력하세요.";if(!f.desc.trim())e.desc="입력하세요.";
+    if(!f.cat)e.cat="선택하세요.";if(!f.dong)e.dong="필수";if(!f.ho)e.ho="필수";if(!f.name)e.name="필수";// 전화번호는 선택 (입주민 인증은 동호수+이름으로 처리)
+    setErr(e);return Object.keys(e).length===0;
+  };
+  const submit=()=>{
+    if(!validate())return;
+    const id=`AGD-${String(ag.length+1).padStart(3,"0")}`;
+    onAdd({id,title:f.title,desc:f.desc,cat:f.cat,submitter:{dong:f.dong,ho:f.ho,name:f.name,phone:maskPh(f.phone)},status:"draft",approvedAt:"",endDate:"",sigs:[],createdAt:today()});
+    onBack();
+  };
+  return(
+    <div style={{maxWidth:640,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      <div className="detail-pad" style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",boxShadow:"0 1px 8px rgba(0,0,0,.06)"}}>
+        <h2 style={{fontSize:isMobile?17:20,fontWeight:800,color:"#111827",marginBottom:4}}>안건 신청</h2>
+        <p style={{fontSize:12,color:"#9ca3af",marginBottom:20}}>관리자 승인 후 공개됩니다. 개인정보는 처리 완료 후 즉시 폐기됩니다.</p>
+        <SLabel>안건 내용</SLabel>
+        <Fld label="제목" err={err.title}><input style={S.inp} placeholder="안건 제목을 간결하게 입력하세요" value={f.title} onChange={e=>setF(p=>({...p,title:e.target.value}))}/></Fld>
+        <Fld label="분야" err={err.cat}>
+          <select style={S.inp} value={f.cat} onChange={e=>setF(p=>({...p,cat:e.target.value}))}>
+            <option value="">선택하세요</option>{CATS.map(c=><option key={c}>{c}</option>)}
+          </select>
+        </Fld>
+        <Fld label="상세 내용" err={err.desc}><textarea style={{...S.inp,minHeight:100,resize:"vertical"}} placeholder="안건 배경, 현황, 요구사항을 구체적으로 작성해 주세요" value={f.desc} onChange={e=>setF(p=>({...p,desc:e.target.value}))}/></Fld>
+        <SLabel>신청자 정보 (관리자 열람 · 처리 완료 후 폐기)</SLabel>
+        <div style={{display:"flex",gap:10}}>
+          <Fld label="동" err={err.dong}><input style={S.inp} placeholder="예: 101"  value={f.dong} onChange={e=>setF(p=>({...p,dong:e.target.value}))}/></Fld>
+          <Fld label="호" err={err.ho}>  <input style={S.inp} placeholder="예: 1502" value={f.ho}   onChange={e=>setF(p=>({...p,ho:e.target.value}))}/></Fld>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <Fld label="이름"     err={err.name}> <input style={S.inp} placeholder="실명"          value={f.name}  onChange={e=>setF(p=>({...p,name:e.target.value}))}/></Fld>
+          <Fld label="전화번호" err={err.phone}><input style={S.inp} placeholder="010-0000-0000 (선택)" value={f.phone} onChange={e=>setF(p=>({...p,phone:e.target.value}))}/></Fld>
+        </div>
+        <div className="btn-row-mobile" style={{display:"flex",gap:8,marginTop:8}}>
+          <PBtn onClick={submit}>안건 접수하기</PBtn>
+          <GBtn onClick={onBack}>취소</GBtn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   개인정보 동의
+══════════════════════════════════════ */
+function PrivacyModal({purpose,onOk,onCancel,inline}){
+  const [agreed,setAgreed]=useState(false);
+  const box=(
+    <div className="detail-pad" style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",boxShadow:"0 1px 8px rgba(0,0,0,.06)"}}>
+      <h3 style={{color:"#111827",marginBottom:18,fontSize:17,fontWeight:800}}>개인정보 수집·이용 동의</h3>
+      <div style={{overflowX:"auto",marginBottom:16}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,minWidth:360}}>
+          <thead><tr style={{background:"#f9fafb",borderBottom:"1px solid #e5e7eb"}}>
+            {["수집 항목","수집 목적","보유 및 폐기"].map(h=><th key={h} style={{padding:"9px 12px",textAlign:"left",color:"#374151",fontWeight:700,whiteSpace:"nowrap"}}>{h}</th>)}
+          </tr></thead>
+          <tbody><tr>
+            <td style={tdS}>동·호수, 이름, 전화번호</td>
+            <td style={tdS}>{purpose} 본인 확인 및 중복 방지</td>
+            <td style={tdS}>목적 달성 후 <b>즉시 폐기</b></td>
+          </tr></tbody>
+        </table>
+      </div>
+      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"11px 14px",fontSize:13,color:"#92400e",marginBottom:18,lineHeight:1.7}}>
+        ※ 위 정보는 목적 외 용도로 사용되지 않으며, 목적 달성 시 지체없이 파기됩니다.<br/>
+        ※ 동의를 거부할 권리가 있으나 거부 시 {purpose}이(가) 불가합니다.
+      </div>
+      <label style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer",marginBottom:18,padding:"12px 14px",background:"#f9fafb",borderRadius:8,border:`1.5px solid ${agreed?BLUE:"#e5e7eb"}`,minHeight:48}}>
+        <input type="checkbox" checked={agreed} onChange={e=>setAgreed(e.target.checked)} style={{width:18,height:18,accentColor:BLUE,flexShrink:0}}/>
+        <span style={{fontSize:13,fontWeight:600,color:agreed?BLUE:"#374151"}}>위 개인정보 수집·이용에 동의합니다 (필수)</span>
+      </label>
+      <div className="btn-row-mobile" style={{display:"flex",gap:8}}>
+        <PBtn onClick={()=>agreed&&onOk()} style={{opacity:agreed?1:.4}}>동의하고 계속</PBtn>
+        <GBtn onClick={onCancel}>취소</GBtn>
+      </div>
+    </div>
+  );
+  if(inline) return box;
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.45)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:400,padding:"16px",overflowY:"auto"}}><div style={{maxWidth:580,width:"100%"}}>{box}</div></div>;
+}
+const tdS={padding:"9px 12px",borderBottom:"1px solid #f3f4f6",color:"#6b7280",verticalAlign:"top",lineHeight:1.6};
+
+/* ══════════════════════════════════════
+   건의사항 게시판
+══════════════════════════════════════ */
+const BOARD_CATS = ["시설관리","소음","청소·위생","주차","보안","관리비","기타"];
+
+function BoardList({board,nav,isMobile}){
+  const maskTitle = t => t.length>5 ? t.slice(0,5)+"*".repeat(Math.min(t.length-5,5)) : t;
+  return(
+    <div>
+      <PageHero icon="📬" title="입주자대표회의 건의사항" desc="입주자대표회의에 건의사항을 비공개로 전달합니다. 작성자 본인만 내용을 확인할 수 있습니다." isMobile={isMobile}>
+        <button onClick={()=>nav("board","write")}
+          style={{padding:"9px 18px",borderRadius:8,border:"none",background:"#1f2937",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0,minHeight:40}}>
+          + 건의하기
+        </button>
+      </PageHero>
+
+      {/* 안내 박스 */}
+      <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"10px 14px",fontSize:13,color:"#92400e",marginBottom:16,lineHeight:1.6}}>
+        🔒 건의사항은 <b>작성자 본인만</b> 내용을 열람할 수 있습니다. 관리자는 전체 내용을 확인하고 답변합니다.
+      </div>
+
+      <div style={{fontSize:12,color:"#9ca3af",marginBottom:10}}>총 {board.length}건</div>
+
+      {board.length===0?<EmptyMsg msg="등록된 건의사항이 없습니다."/>:(
+        <div style={{background:"#fff",borderRadius:10,border:"1px solid #e5e7eb",overflow:"hidden"}}>
+          {/* 헤더 */}
+          <div className="board-table-header" style={{display:"grid",gridTemplateColumns:"60px 1fr 120px 70px",gap:0,padding:"10px 16px",background:"#f9fafb",borderBottom:"1px solid #e5e7eb",fontSize:12,fontWeight:700,color:"#6b7280"}}>
+            <span style={{textAlign:"center"}}>번호</span>
+            <span>제목</span>
+            <span style={{textAlign:"center"}}>작성자</span>
+            <span style={{textAlign:"center"}}>날짜</span>
+          </div>
+          {board.map((b,i)=>(
+            <div key={b.id} onClick={()=>nav("board","detail",b.id)}
+              style={{display:"grid",gridTemplateColumns:"60px 1fr 120px 70px",gap:0,
+                padding:"12px 16px",borderBottom:"1px solid #f3f4f6",cursor:"pointer",
+                transition:"background .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.background="#f9fafb"}
+              onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+              <span style={{textAlign:"center",fontSize:13,color:"#9ca3af"}}>{board.length-i}</span>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:13,fontWeight:600,color:"#111827"}}>{maskTitle(b.title)}</span>
+                {b.status==="answered"&&<span style={{fontSize:10,color:"#16a34a",background:"#dcfce7",borderRadius:4,padding:"1px 6px",fontWeight:700,flexShrink:0}}>답변완료</span>}
+                <span style={{fontSize:11,color:"#9ca3af",marginLeft:"auto",flexShrink:0}}>🔒</span>
+              </div>
+              <span style={{textAlign:"center",fontSize:12,color:"#6b7280"}}>{maskDong(b.author.dong)}동 {maskHo(b.author.ho)}호 {maskName(b.author.name)}</span>
+              <span style={{textAlign:"center",fontSize:11,color:"#9ca3af"}}>{b.createdAt.slice(5)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BoardDetail({post,onBack,isMobile}){
+  const [verified,setVerified]=useState(false);
+  const [f,setF]=useState({dong:"",ho:"",name:""});
+  const [err,setErr]=useState("");
+  if(!post) return <div><BackBtn onClick={onBack}/><EmptyMsg msg="게시물을 찾을 수 없습니다."/></div>;
+
+  const [verifying,setVerifying]=useState(false);
+  const verify=async()=>{
+    setVerifying(true);
+    const memberOk=await verifyMember(f.dong,f.ho,f.name);
+    setVerifying(false);
+    if(!memberOk){setErr("입주민 정보가 일치하지 않습니다.");return;}
+    if(f.dong===post.author.dong&&f.ho===post.author.ho&&f.name===post.author.name){
+      setVerified(true);setErr("");
+    } else {
+      setErr("작성자 정보가 일치하지 않습니다.");
+    }
+  };
+
+  return(
+    <div style={{maxWidth:700,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      <div className="detail-pad" style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",boxShadow:"0 1px 8px rgba(0,0,0,.06)"}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:14}}>
+          <Tag color="#374151" bg="#f3f4f6">{post.cat}</Tag>
+          {post.status==="answered"&&<Tag color="#16a34a" bg="#dcfce7">답변완료</Tag>}
+          <span style={{fontSize:11,color:"#9ca3af",marginLeft:"auto"}}>{post.id}</span>
+        </div>
+        <h2 style={{fontSize:isMobile?18:20,fontWeight:800,color:"#111827",marginBottom:10}}>{post.title}</h2>
+        <div style={{fontSize:12,color:"#9ca3af",marginBottom:20,display:"flex",gap:16}}>
+          <span>📍 {maskDong(post.author.dong)}동 {maskHo(post.author.ho)}호</span>
+          <span>📅 {post.createdAt}</span>
+        </div>
+
+        {!verified?(
+          <div style={{background:"#f9fafb",borderRadius:10,padding:"24px",border:"1px solid #e5e7eb",textAlign:"center"}}>
+            <div style={{fontSize:32,marginBottom:12}}>🔒</div>
+            <div style={{fontWeight:700,fontSize:15,color:"#111827",marginBottom:4}}>비공개 게시물</div>
+            <div style={{fontSize:13,color:"#6b7280",marginBottom:20}}>작성자 본인 확인 후 내용을 열람할 수 있습니다.</div>
+            <div style={{maxWidth:360,margin:"0 auto"}}>
+              <div style={{display:"flex",gap:10,marginBottom:10}}>
+                <Fld label="동"><input style={S.inp} placeholder="예: 101"  value={f.dong} onChange={e=>setF(p=>({...p,dong:e.target.value}))}/></Fld>
+                <Fld label="호"><input style={S.inp} placeholder="예: 1502" value={f.ho}   onChange={e=>setF(p=>({...p,ho:e.target.value}))}/></Fld>
+              </div>
+              <Fld label="이름"><input style={S.inp} placeholder="실명 입력" value={f.name} onChange={e=>setF(p=>({...p,name:e.target.value}))} onKeyDown={e=>e.key==="Enter"&&verify()}/></Fld>
+              {err&&<div style={{color:"#dc2626",fontSize:12,marginBottom:8,fontWeight:500}}>{err}</div>}
+              <PBtn onClick={verify}>본인 확인</PBtn>
+            </div>
+          </div>
+        ):(
+          <>
+            <p style={{fontSize:15,color:"#374151",lineHeight:1.8,padding:"16px",background:"#f9fafb",borderRadius:8,borderLeft:"3px solid #2563eb",marginBottom:post.answer?20:0}}>{post.content}</p>
+            {post.answer&&(
+              <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"14px 16px"}}>
+                <div style={{fontWeight:700,fontSize:13,color:"#15803d",marginBottom:8}}>💬 관리자 답변</div>
+                <p style={{fontSize:14,color:"#166534",lineHeight:1.7}}>{post.answer}</p>
+                {post.answeredAt&&<div style={{fontSize:11,color:"#9ca3af",marginTop:6}}>{post.answeredAt}</div>}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function BoardWrite({board,onAdd,onBack,notify,isMobile}){
+  const [step,setStep]=useState("privacy");
+  const [f,setF]=useState({title:"",content:"",cat:"",dong:"",ho:"",name:"",phone:""});
+  const [err,setErr]=useState({});
+  if(step==="privacy") return(
+    <div style={{maxWidth:640,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      <PrivacyModal purpose="건의사항 작성" onOk={()=>setStep("form")} onCancel={onBack} inline/>
+    </div>
+  );
+  const validate=()=>{
+    const e={};
+    if(!f.title.trim())e.title="제목을 입력하세요.";
+    if(!f.content.trim())e.content="내용을 입력하세요.";
+    if(!f.cat)e.cat="분야를 선택하세요.";
+    if(!f.dong)e.dong="동을 입력하세요.";
+    if(!f.ho)e.ho="호를 입력하세요.";
+    if(!f.name)e.name="이름을 입력하세요.";
+    if(!f.phone)e.phone="전화번호를 입력하세요.";
+    setErr(e);return Object.keys(e).length===0;
+  };
+  const submit=()=>{
+    if(!validate())return;
+    const id=`BRD-${String(board.length+1).padStart(3,"0")}`;
+    onAdd({id,title:f.title,content:f.content,cat:f.cat,
+      author:{dong:f.dong,ho:f.ho,name:f.name,phone:maskPh(f.phone)},
+      createdAt:today(),status:"pending",answer:"",answeredAt:""});
+    onBack();
+  };
+  return(
+    <div style={{maxWidth:640,margin:"0 auto"}}>
+      <BackBtn onClick={onBack}/>
+      <div className="detail-pad" style={{background:"#fff",borderRadius:12,border:"1px solid #e5e7eb",boxShadow:"0 1px 8px rgba(0,0,0,.06)"}}>
+        <h2 style={{fontSize:isMobile?17:20,fontWeight:800,color:"#111827",marginBottom:4}}>건의사항 작성</h2>
+        <p style={{fontSize:12,color:"#9ca3af",marginBottom:20}}>내용은 작성자 본인만 열람 가능합니다. 관리자가 검토 후 답변드립니다.</p>
+        <SLabel>건의 내용</SLabel>
+        <Fld label="제목" err={err.title}><input style={S.inp} placeholder="건의 제목을 간결하게 입력하세요" value={f.title} onChange={e=>setF(p=>({...p,title:e.target.value}))}/></Fld>
+        <Fld label="분야" err={err.cat}>
+          <select style={S.inp} value={f.cat} onChange={e=>setF(p=>({...p,cat:e.target.value}))}>
+            <option value="">선택하세요</option>{BOARD_CATS.map(c=><option key={c}>{c}</option>)}
+          </select>
+        </Fld>
+        <Fld label="상세 내용" err={err.content}><textarea style={{...S.inp,minHeight:130,resize:"vertical"}} placeholder="건의 내용을 구체적으로 작성해 주세요" value={f.content} onChange={e=>setF(p=>({...p,content:e.target.value}))}/></Fld>
+        <SLabel>작성자 정보 (관리자만 열람 · 목적 달성 후 폐기)</SLabel>
+        <div style={{display:"flex",gap:10}}>
+          <Fld label="동" err={err.dong}><input style={S.inp} placeholder="예: 101"  value={f.dong} onChange={e=>setF(p=>({...p,dong:e.target.value}))}/></Fld>
+          <Fld label="호" err={err.ho}>  <input style={S.inp} placeholder="예: 1502" value={f.ho}   onChange={e=>setF(p=>({...p,ho:e.target.value}))}/></Fld>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <Fld label="이름"     err={err.name}> <input style={S.inp} placeholder="실명 입력"      value={f.name}  onChange={e=>setF(p=>({...p,name:e.target.value}))}/></Fld>
+          <Fld label="전화번호" err={err.phone}><input style={S.inp} placeholder="010-0000-0000 (선택)" value={f.phone} onChange={e=>setF(p=>({...p,phone:e.target.value}))}/></Fld>
+        </div>
+        <div className="btn-row-mobile" style={{display:"flex",gap:8,marginTop:8}}>
+          <PBtn onClick={submit}>건의하기</PBtn>
+          <GBtn onClick={onBack}>취소</GBtn>
+        </div>
+      </div>
+    </div>
+  );
+}
+function AdminLogin({pw,setPw,err,onLogin}){
+  return(
+    <div style={{display:"flex",justifyContent:"center",paddingTop:40}}>
+      <div style={{background:"#fff",borderRadius:12,padding:"32px 28px",width:"100%",maxWidth:360,border:"1px solid #e5e7eb",boxShadow:"0 2px 16px rgba(0,0,0,.07)"}}>
+        <h2 style={{textAlign:"center",color:"#111827",marginBottom:6,fontSize:18,fontWeight:800}}>관리자 로그인</h2>
+        <p style={{textAlign:"center",color:"#9ca3af",fontSize:13,marginBottom:22}}>관리자 비밀번호를 입력하세요</p>
+        <Fld label="비밀번호"><input type="password" style={S.inp} placeholder="비밀번호" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&onLogin()} autoComplete="current-password"/></Fld>
+        {err&&<div style={{color:"#dc2626",fontSize:12,marginBottom:10,fontWeight:500}}>{err}</div>}
+        <PBtn onClick={onLogin}>로그인</PBtn>
+        <p style={{textAlign:"center",color:"#d1d5db",fontSize:11,marginTop:12}}>기본 비밀번호: admin1234</p>
+      </div>
+    </div>
+  );
+}
+
+function AdminPanel({ag,vt,cfg,board,patchAg,patchVt,addVt,setCfg,onBack,notify,isMobile}){
+  const [tab,setTab]=useState("overview");
+  const tabs=[{v:"overview",l:"현황"},{v:"agenda",l:"안건"},{v:"vote",l:"자문단"},{v:"board",l:"건의사항"},{v:"cfg",l:"설정"}];
+  return(
+    <div style={{width:"100%"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+        <div>
+          <div style={{fontWeight:800,fontSize:isMobile?17:20,color:"#111827"}}>관리자 패널</div>
+          <div style={{fontSize:12,color:"#9ca3af",marginTop:1}}>전체 현황 확인 및 컨트롤</div>
+        </div>
+        <GBtn onClick={onBack} style={{width:"auto",padding:"7px 14px",fontSize:13}}>← 메인</GBtn>
+      </div>
+      {/* 탭 - 모바일에서 스크롤 */}
+      <div style={{display:"flex",borderBottom:"2px solid #e5e7eb",marginBottom:20,overflowX:"auto"}}>
+        {tabs.map(t=>(
+          <button key={t.v} onClick={()=>setTab(t.v)}
+            style={{padding:"9px 16px",border:"none",cursor:"pointer",fontSize:14,fontWeight:tab===t.v?700:400,
+              background:"transparent",color:tab===t.v?"#111827":"#6b7280",
+              borderBottom:`2px solid ${tab===t.v?"#111827":"transparent"}`,marginBottom:-2,whiteSpace:"nowrap"}}>
+            {t.l}
+          </button>
+        ))}
+      </div>
+      {tab==="overview"&&<AdminOverview ag={ag} vt={vt} isMobile={isMobile}/>}
+      {tab==="board"    &&<AdminBoard   board={board} setCfg={setCfg} notify={notify}/>}
+      {tab==="vote"    &&<AdminVotes    vt={vt} patchVt={patchVt} addVt={addVt} notify={notify} isMobile={isMobile}/>}
+      {tab==="agenda"  &&<AdminAgendas  ag={ag} patchAg={patchAg} cfg={cfg} notify={notify} isMobile={isMobile}/>}
+      {tab==="cfg"     &&<AdminCfg      cfg={cfg} setCfg={setCfg} notify={notify}/>}
+    </div>
+  );
+}
+
+function AdminOverview({ag,vt,isMobile}){
+  const vtActive=vt.filter(v=>canVote(v));
+  const agDraft =ag.filter(a=>a.status==="draft");
+  const agActive=ag.filter(a=>isActiveAg(a));
+  return(
+    <div style={{width:"100%"}}>    <div className="grid-4" style={{marginBottom:20}}>
+        {[
+          {l:"설문/투표",v:vt.length,            sub:`진행중 ${vtActive.length}`,c:BLUE,    bg:LBLUE},
+          {l:"투표 참여",v:vt.reduce((s,v)=>s+v.votes.length,0),sub:"누적",   c:"#7c3aed",bg:"#f5f3ff"},
+          {l:"전체 안건",v:ag.length,             sub:`대기 ${agDraft.length}`, c:"#d97706",bg:"#fef3c7"},
+          {l:"수렴 안건",v:agActive.length,       sub:`찬성 ${ag.reduce((s,a)=>s+a.sigs.length,0)}명`,c:"#16a34a",bg:"#dcfce7"},
+        ].map(s=>(
+          <div key={s.l} style={{background:s.bg,borderRadius:10,padding:"14px",border:`1px solid ${s.c}20`}}>
+            <div className="stat-num" style={{fontWeight:800,color:s.c,lineHeight:1}}>{s.v}</div>
+            <div style={{fontSize:12,color:s.c,marginTop:3,fontWeight:600}}>{s.l}</div>
+            <div style={{fontSize:10,color:`${s.c}aa`,marginTop:1}}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      {agDraft.length>0&&(
+        <div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:10,padding:"16px",marginBottom:16}}>
+          <div style={{fontWeight:700,color:"#92400e",fontSize:13,marginBottom:10}}>⏳ 승인 대기 ({agDraft.length}건)</div>
+          {agDraft.map(a=>(
+            <div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:"#fff",borderRadius:8,marginBottom:7,border:"1px solid #fde68a"}}>
+              <div>
+                <div style={{fontWeight:700,fontSize:13,color:"#111827"}}>{a.title}</div>
+                <div style={{fontSize:11,color:"#9ca3af"}}>{a.submitter.dong}동 {a.submitter.ho}호 · {fmt(a.createdAt)}</div>
+              </div>
+              <span style={{fontSize:10,color:"#d97706",fontWeight:600,background:"#fef3c7",padding:"2px 7px",borderRadius:4,flexShrink:0,marginLeft:8}}>대기</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="grid-2">
+        {[
+          {title:"진행중 정책 자문",items:vtActive,render:v=><div key={v.id} style={{padding:"9px 10px",background:"#f9fafb",borderRadius:8,marginBottom:7}}><div style={{fontWeight:600,fontSize:13,color:"#111827",marginBottom:1}}>{v.title}</div><div style={{fontSize:11,color:"#9ca3af"}}>✋ {v.votes.length}명 · {fmt(v.endDate)}</div></div>},
+          {title:"수렴 중 안건",items:agActive,render:a=><div key={a.id} style={{padding:"9px 10px",background:"#f9fafb",borderRadius:8,marginBottom:7}}><div style={{fontWeight:600,fontSize:13,color:"#111827",marginBottom:1}}>{a.title}</div><div style={{fontSize:11,color:"#9ca3af"}}>✋ {a.sigs.length}명 · {fmt(a.endDate)}</div></div>},
+        ].map(({title,items,render})=>(
+          <div key={title} style={{background:"#fff",borderRadius:10,padding:"16px",border:"1px solid #e5e7eb"}}>
+            <div style={{fontWeight:700,fontSize:13,color:"#111827",marginBottom:10,paddingBottom:8,borderBottom:"1px solid #f3f4f6"}}>{title}</div>
+            {items.length===0?<EmptyMsg msg="없음"/>:items.map(render)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AdminVotes({vt,patchVt,addVt,notify,isMobile}){
+  const [sel,setSel]=useState(null);
+  const [cr, setCr] =useState(false);
+  const [nv, setNv] =useState({title:"",desc:"",type:"찬반",options:["찬성","반대","보류"],startDate:today(),endDate:"",status:"active",showResult:"always"});
+  const stOpts=[{v:"active",l:"진행중"},{v:"closed",l:"마감"},{v:"draft",l:"준비중"}];
+  const saveNew=()=>{
+    if(!nv.title||!nv.endDate){notify("제목과 마감일을 입력하세요.","err");return;}
+    const opts=nv.options.filter(o=>o.trim());
+    if(opts.length<2){notify("선택지를 2개 이상 입력하세요.","err");return;}
+    addVt({...nv,id:`VOT-${String(vt.length+1).padStart(3,"0")}`,options:opts,votes:[],createdAt:today()});
+    setCr(false);setNv({title:"",desc:"",type:"찬반",options:["찬성","반대","보류"],startDate:today(),endDate:"",status:"active",showResult:"always"});
+  };
+  return(
+    <div style={{width:"100%"}}>    <div style={{display:"flex",justifyContent:"flex-end",marginBottom:14}}>
+        <button onClick={()=>setCr(true)} style={{padding:"9px 18px",borderRadius:8,border:"none",background:"#1f2937",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",minHeight:40}}>+ 만들기</button>
+      </div>
+      {cr&&(
+        <div style={{background:"#fff",borderRadius:12,padding:"20px",border:`2px solid ${BLUE}`,marginBottom:16}}>
+          <div style={{fontWeight:700,color:"#111827",fontSize:14,marginBottom:14}}>새 투표/설문 만들기</div>
+          <Fld label="제목"><input style={S.inp} placeholder="투표/설문 제목" value={nv.title} onChange={e=>setNv(p=>({...p,title:e.target.value}))}/></Fld>
+          <Fld label="설명"><textarea style={{...S.inp,minHeight:60,resize:"vertical"}} placeholder="설명" value={nv.desc} onChange={e=>setNv(p=>({...p,desc:e.target.value}))}/></Fld>
+          <div style={{display:"flex",gap:10}}>
+            <Fld label="유형"><select style={S.inp} value={nv.type} onChange={e=>{const t=e.target.value;setNv(p=>({...p,type:t,options:t==="찬반"?["찬성","반대","보류"]:["",""]}));}}>
+              <option>찬반</option><option>객관식</option>
+            </select></Fld>
+            <Fld label="결과 공개"><select style={S.inp} value={nv.showResult} onChange={e=>setNv(p=>({...p,showResult:e.target.value}))}>
+              <option value="always">실시간</option><option value="after">종료후</option>
+            </select></Fld>
+          </div>
+          <Fld label="선택지">
+            {nv.options.map((o,i)=>(
+              <div key={i} style={{display:"flex",gap:7,marginBottom:7}}>
+                <input style={{...S.inp,flex:1}} placeholder={`선택지 ${i+1}`} value={o} onChange={e=>{const a=[...nv.options];a[i]=e.target.value;setNv(p=>({...p,options:a}));}}/>
+                {nv.options.length>2&&<button style={{padding:"8px 10px",borderRadius:6,border:"1px solid #e5e7eb",background:"#fff",cursor:"pointer",fontSize:12,color:"#6b7280",flexShrink:0}} onClick={()=>setNv(p=>({...p,options:p.options.filter((_,j)=>j!==i)}))}>✕</button>}
+              </div>
+            ))}
+            <button style={{padding:"6px 12px",borderRadius:6,border:"1px solid #e5e7eb",background:"#fff",cursor:"pointer",fontSize:12,color:"#6b7280",marginTop:3}} onClick={()=>setNv(p=>({...p,options:[...p.options,""]}))}>+ 추가</button>
+          </Fld>
+          <div style={{display:"flex",gap:10}}>
+            <Fld label="시작일"><input type="date" style={S.inp} value={nv.startDate} onChange={e=>setNv(p=>({...p,startDate:e.target.value}))}/></Fld>
+            <Fld label="마감일"><input type="date" style={S.inp} value={nv.endDate}   onChange={e=>setNv(p=>({...p,endDate:e.target.value}))}/></Fld>
+          </div>
+          <div className="btn-row-mobile" style={{display:"flex",gap:8,marginTop:8}}>
+            <PBtn onClick={saveNew}>등록</PBtn><GBtn onClick={()=>setCr(false)}>취소</GBtn>
+          </div>
+        </div>
+      )}
+      {/* 목록 */}
+      {vt.map(v=>{
+        const si=vtSt(v);
+        const open=sel&&sel.id===v.id;
+        return(
+          <div key={v.id} style={{...S.adminRow,borderLeft:open?`3px solid ${BLUE}`:"3px solid transparent",marginBottom:8}}>
+            <div style={{cursor:"pointer"}} onClick={()=>setSel(open?null:v)}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:7}}>
+                <Tag color={v.type==="찬반"?"#16a34a":"#7c3aed"} bg={v.type==="찬반"?"#dcfce7":"#f5f3ff"}>{v.type}</Tag>
+                <Tag color={si.c} bg={si.bg}>{si.t}</Tag>
+                <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{v.id}</span>
+              </div>
+              <div style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:3}}>{v.title}</div>
+              <div style={{fontSize:12,color:"#9ca3af"}}>✋ {v.votes.length}명 · {fmt(v.startDate)}~{fmt(v.endDate)}</div>
+            </div>
+            <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}} onClick={e=>e.stopPropagation()}>
+              {stOpts.map(s=><ABtn key={s.v} active={v.status===s.v} onClick={()=>{patchVt(v.id,{status:s.v});if(sel&&sel.id===v.id)setSel(p=>({...p,status:s.v}));}}>{s.l}</ABtn>)}
+            </div>
+            {/* 인라인 상세 (모바일 포함) */}
+            {open&&(
+              <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #f3f4f6"}}>
+                {v.options.map(o=>{
+                  const cnt=v.votes.filter(x=>x.choice===o).length,pct=v.votes.length>0?Math.round(cnt/v.votes.length*100):0;
+                  return(<div key={o} style={{marginBottom:8}}>
+                    <div style={{display:"flex",justifyContent:"space-between",fontSize:13,marginBottom:3}}><span>{o}</span><b>{cnt}명 ({pct}%)</b></div>
+                    <div style={{height:5,background:"#f3f4f6",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:BLUE,borderRadius:3}}/></div>
+                  </div>);
+                })}
+                <div style={{fontSize:12,color:"#9ca3af",marginTop:10,fontWeight:600}}>참여자 ({v.votes.length}명)</div>
+                <div style={{maxHeight:160,overflowY:"auto",marginTop:6}}>
+                  {v.votes.length===0?<EmptyMsg msg="없음"/>:v.votes.map((vv,i)=>(
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"16px 1fr 0.7fr 0.8fr",gap:6,padding:"5px 0",borderBottom:"1px solid #f9fafb",fontSize:12,color:"#374151"}}>
+                      <span style={{color:"#9ca3af"}}>{i+1}</span>
+                      <span>{vv.dong}동 {vv.ho}호</span>
+                      <span style={{color:BLUE,fontWeight:600}}>{vv.choice}</span>
+                      <span style={{color:"#9ca3af"}}>{vv.date}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* 건의사항 관리 */
+function AdminBoard({board,notify}){
+  const [sel,setSel]=useState(null);
+  const [answer,setAnswer]=useState("");
+
+  const saveAnswer=(id)=>{
+    if(!answer.trim()){notify("답변 내용을 입력하세요.","err");return;}
+    const stored=JSON.parse(localStorage.getItem("rp3_board")||"[]");
+    const updated=stored.map(b=>b.id===id?{...b,status:"answered",answer,answeredAt:today()}:b);
+    localStorage.setItem("rp3_board",JSON.stringify(updated));
+    setSel(p=>({...p,status:"answered",answer,answeredAt:today()}));
+    setAnswer("");
+    notify("답변이 등록되었습니다.");
+  };
+
+  const latestBoard=JSON.parse(localStorage.getItem("rp3_board")||JSON.stringify(board));
+
+  return(
+    <div style={{width:"100%"}}>    <div style={{display:"grid",gridTemplateColumns:sel?"1fr 1.1fr":"1fr",gap:16}}>
+        <div>
+          {latestBoard.length===0&&<EmptyMsg msg="건의사항이 없습니다."/>}
+          {latestBoard.map(b=>(
+            <div key={b.id} style={{...S.adminRow,borderLeft:sel&&sel.id===b.id?`3px solid ${BLUE}`:"3px solid transparent",marginBottom:8,cursor:"pointer"}}
+              onClick={()=>{setSel(b);setAnswer(b.answer||"");}}>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:7}}>
+                <Tag color={catTag(b.cat).color} bg={catTag(b.cat).background}>{b.cat}</Tag>
+                <Tag color={b.status==="answered"?"#16a34a":"#d97706"} bg={b.status==="answered"?"#dcfce7":"#fef3c7"}>
+                  {b.status==="answered"?"답변완료":"답변대기"}
+                </Tag>
+                <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{b.id}</span>
+              </div>
+              <div style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:3}}>{b.title}</div>
+              <div style={{fontSize:12,color:"#9ca3af"}}>{maskDong(b.author.dong)}동 {maskHo(b.author.ho)}호 <b style={{color:"#374151"}}>{b.author.name}</b> · {b.author.phone} · {b.createdAt}</div>
+            </div>
+          ))}
+        </div>
+        {sel&&(
+          <div style={{...S.adminDetail,alignSelf:"start",position:"sticky",top:80}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+              <span style={{fontWeight:800,fontSize:15,color:"#111827"}}>건의 상세</span>
+              <button style={{background:"none",border:"none",cursor:"pointer",fontSize:16,color:"#9ca3af"}} onClick={()=>setSel(null)}>✕</button>
+            </div>
+            {[{l:"번호",v:sel.id},{l:"분야",v:sel.cat},{l:"제목",v:sel.title},{l:"작성자",v:`${sel.author.dong}동 ${sel.author.ho}호 ${sel.author.name} (${sel.author.phone})`},{l:"등록일",v:sel.createdAt}].map(({l,v})=>(
+              <div key={l} style={S.infoRow}><span style={{color:"#9ca3af",minWidth:60,fontSize:13,flexShrink:0}}>{l}</span><b style={{fontSize:13,color:"#111827"}}>{v}</b></div>
+            ))}
+            <div style={{padding:"12px 14px",background:"#f9fafb",borderRadius:8,fontSize:13,color:"#374151",lineHeight:1.7,margin:"12px 0 12px",borderLeft:"3px solid #e5e7eb"}}>{sel.content}</div>
+            <div style={{fontWeight:700,fontSize:13,color:"#111827",marginBottom:8}}>💬 관리자 답변</div>
+            {sel.status==="answered"&&sel.answer&&(
+              <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"10px 12px",fontSize:13,color:"#166534",lineHeight:1.7,marginBottom:10}}>{sel.answer}</div>
+            )}
+            <textarea style={{...S.inp,minHeight:80,resize:"vertical",marginBottom:10}}
+              placeholder="답변을 입력하세요" value={answer} onChange={e=>setAnswer(e.target.value)}/>
+            <PBtn onClick={()=>saveAnswer(sel.id)}>답변 등록</PBtn>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminAgendas({ag,patchAg,cfg,notify,isMobile}){
+  const [sel,setSel]=useState(null);
+  const [search,setSearch]=useState("");
+  const [stFlt,setStFlt]=useState("전체");
+  const stOpts=[{v:"active",l:"의견수렴"},{v:"declined",l:"반려"},{v:"closed",l:"마감"},{v:"passed",l:"가결"},{v:"rejected",l:"부결"}];
+  const filtered=ag.filter(a=>{
+    const sOk=stFlt==="전체"||a.status===stFlt;
+    const kOk=!search||a.title.includes(search)||a.submitter.name.includes(search)||a.submitter.dong.includes(search);
+    return sOk&&kOk;
+  });
+  return(
+    <div style={{width:"100%"}}>    <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+        <input style={{...S.inp,maxWidth:200,flex:1}} placeholder="🔍 검색" value={search} onChange={e=>setSearch(e.target.value)}/>
+        <div className="scroll-x">
+          {[{v:"전체",l:"전체"},{v:"draft",l:"검토중"},...stOpts].map(s=>(
+            <ABtn key={s.v} active={stFlt===s.v} onClick={()=>setStFlt(s.v)}>{s.l}</ABtn>
+          ))}
+        </div>
+      </div>
+      {filtered.length===0&&<EmptyMsg msg="해당 안건 없음"/>}
+      {filtered.map(a=>{
+        const si=agSt(a);
+        const open=sel&&sel.id===a.id;
+        return(
+          <div key={a.id} style={{...S.adminRow,borderLeft:open?`3px solid ${BLUE}`:"3px solid transparent",marginBottom:8}}>
+            <div style={{cursor:"pointer"}} onClick={()=>setSel(open?null:a)}>
+              <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:7}}>
+                <Tag color={catTag(a.cat).color} bg={catTag(a.cat).background}>{a.cat}</Tag>
+                <Tag color={si.c} bg={si.bg}>{si.t}</Tag>
+                <span style={{marginLeft:"auto",fontSize:11,color:"#9ca3af"}}>{a.id}</span>
+              </div>
+              <div style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:3}}>{a.title}</div>
+              <div style={{fontSize:12,color:"#9ca3af"}}>📍 {a.submitter.dong}동 {a.submitter.ho}호 <b style={{color:"#374151"}}>{a.submitter.name}</b> · {a.submitter.phone}</div>
+              <div style={{fontSize:12,color:"#9ca3af",marginTop:1}}>✋ {a.sigs.length}명 · {fmt(a.createdAt)}{a.endDate?` · ~${fmt(a.endDate)}`:""}</div>
+            </div>
+            <div style={{display:"flex",gap:6,marginTop:10,flexWrap:"wrap"}} onClick={e=>e.stopPropagation()}>
+              {a.status==="draft"&&<>
+                <button style={{padding:"5px 14px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:"#16a34a",color:"#fff",minHeight:32}}
+                  onClick={()=>{const approvedAt=today(),endDate=addD(approvedAt,cfg.periodDays);patchAg(a.id,{status:"active",approvedAt,endDate});if(sel&&sel.id===a.id)setSel(p=>({...p,status:"active",approvedAt,endDate}));notify(`승인 완료. 마감: ${endDate.replace(/-/g,".")}`);}}
+                >✓ 승인</button>
+                <button style={{padding:"5px 14px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,background:"#dc2626",color:"#fff",minHeight:32}}
+                  onClick={()=>{patchAg(a.id,{status:"declined"});if(sel&&sel.id===a.id)setSel(p=>({...p,status:"declined"}));notify("반려되었습니다.");}}
+                >✗ 반려</button>
+              </>}
+              {a.status!=="draft"&&stOpts.map(s=>(
+                <ABtn key={s.v} active={a.status===s.v} onClick={()=>{patchAg(a.id,{status:s.v});if(sel&&sel.id===a.id)setSel(p=>({...p,status:s.v}));}}>{s.l}</ABtn>
+              ))}
+            </div>
+            {open&&(
+              <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid #f3f4f6"}}>
+                <div style={{fontSize:13,color:"#374151",lineHeight:1.7,marginBottom:12,padding:"10px 12px",background:"#f9fafb",borderRadius:8,borderLeft:"3px solid #e5e7eb"}}>{a.desc}</div>
+                <div style={{display:"grid",gridTemplateColumns:"80px 1fr",gap:4,marginBottom:10}}>
+                  {[{l:"승인일",v:a.approvedAt?fmt(a.approvedAt):"미승인"},{l:"마감일",v:a.endDate?fmt(a.endDate):"미설정"},{l:"찬성",v:`${a.sigs.length}명`}].map(({l,v})=>(
+                    <React.Fragment key={l}><span style={{fontSize:12,color:"#9ca3af"}}>{l}</span><b style={{fontSize:12,color:"#111827"}}>{v}</b></React.Fragment>
+                  ))}
+                </div>
+                <div style={{fontSize:12,color:"#9ca3af",fontWeight:600,marginBottom:6}}>찬성 제출자 ({a.sigs.length}명)</div>
+                <div style={{maxHeight:160,overflowY:"auto"}}>
+                  {a.sigs.length===0?<EmptyMsg msg="없음"/>:a.sigs.map((s,i)=>(
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"16px 1fr 0.7fr 1fr",gap:6,padding:"5px 0",borderBottom:"1px solid #f9fafb",fontSize:12,color:"#374151"}}>
+                      <span style={{color:"#9ca3af"}}>{i+1}</span>
+                      <span>{s.dong}동 {s.ho}호</span><span>{s.name}</span><span style={{color:"#6b7280"}}>{s.phone}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AdminCfg({cfg,setCfg,notify}){
+  const [d,setD]=useState({...cfg});
+  return(
+    <div style={{width:"100%"}}>
+      <div style={{background:"#fff",borderRadius:12,padding:"22px",border:"1px solid #e5e7eb"}}>
+        <SLabel>플랫폼 정보</SLabel>
+        <Fld label="메인 타이틀"><input style={S.inp} value={d.title} onChange={e=>setD(p=>({...p,title:e.target.value}))}/></Fld>
+        <Fld label="부제목">     <input style={S.inp} value={d.sub}   onChange={e=>setD(p=>({...p,sub:e.target.value}))}/></Fld>
+        <Fld label="공지 문구">  <textarea style={{...S.inp,minHeight:65,resize:"vertical"}} value={d.notice} onChange={e=>setD(p=>({...p,notice:e.target.value}))}/></Fld>
+        <SLabel>하단 푸터 정보</SLabel>
+        <Fld label="아파트 단지명 (CI 옆 표시)">
+          <input style={S.inp} value={d.footerAptName||""} onChange={e=>setD(p=>({...p,footerAptName:e.target.value}))} placeholder="1동탄 숲속마을 자연앤데시앙아파트"/>
+        </Fld>
+        <Fld label="아파트 주소">
+          <input style={S.inp} value={d.footerAddr||""} onChange={e=>setD(p=>({...p,footerAddr:e.target.value}))} placeholder="경기도 OO시 OO구 데시앙로 123"/>
+        </Fld>
+        <div style={{display:"flex",gap:10}}>
+          <Fld label="관리사무소 전화">
+            <input style={S.inp} value={d.footerTel||""} onChange={e=>setD(p=>({...p,footerTel:e.target.value}))} placeholder="031-000-0000"/>
+          </Fld>
+          <Fld label="이메일">
+            <input style={S.inp} value={d.footerEmail||""} onChange={e=>setD(p=>({...p,footerEmail:e.target.value}))} placeholder="manager@desiang.co.kr"/>
+          </Fld>
+        </div>
+        <Fld label="아파트아이 URL">
+          <input style={S.inp} value={d.footerSite||""} onChange={e=>setD(p=>({...p,footerSite:e.target.value}))} placeholder="https://www.aptiz.com"/>
+        </Fld>
+        <SLabel>안건 의견수렴 기본값</SLabel>        <InfoBox msg="승인 시 승인일로부터 아래 일수만큼 자동으로 마감일이 설정됩니다."/>
+        <Fld label={`의견수렴 기간: 승인일로부터 ${d.periodDays}일`}>
+          <input type="range" min={3} max={60} step={1} value={d.periodDays} onChange={e=>setD(p=>({...p,periodDays:Number(e.target.value)}))} style={{width:"100%",accentColor:BLUE,marginTop:4}}/>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#9ca3af"}}><span>3일</span><span>60일</span></div>
+        </Fld>
+        <Fld label={`목표 찬성수: ${d.minSigs}명`}>
+          <input type="range" min={5} max={300} step={5} value={d.minSigs} onChange={e=>setD(p=>({...p,minSigs:Number(e.target.value)}))} style={{width:"100%",accentColor:BLUE,marginTop:4}}/>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:"#9ca3af"}}><span>5명</span><span>300명</span></div>
+        </Fld>
+        <PBtn onClick={()=>{setCfg({...d});notify("설정이 저장되었습니다.");}}>저장</PBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════
+   공통 컴포넌트
+══════════════════════════════════════ */
+function PageHero({icon,title,desc,isMobile,children}){
+  return(
+    <div style={{marginBottom:20,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,flexWrap:"wrap"}}>
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+          <span style={{fontSize:isMobile?20:24}}>{icon}</span>
+          <h1 style={{fontSize:isMobile?17:20,fontWeight:800,color:"#111827",letterSpacing:"-0.3px"}}>{title}</h1>
+        </div>
+        <p style={{fontSize:12,color:"#9ca3af"}}>{desc}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+function BackBtn({onClick}){return<button onClick={onClick} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,color:"#6b7280",marginBottom:14,display:"flex",alignItems:"center",gap:4,padding:0,fontWeight:600,minHeight:36}}>← 목록으로</button>;}
+function FBtn({active,onClick,children,small}){return<button onClick={onClick} style={{padding:small?"2px 7px":"5px 12px",borderRadius:20,border:`1px solid ${active?"#111827":"#e5e7eb"}`,cursor:"pointer",fontSize:small?11:12,fontWeight:active?700:400,background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",whiteSpace:"nowrap",minHeight:small?24:32}}>{children}</button>;}
+function SortBtn({active,onClick,children}){return<button onClick={onClick} style={{padding:"3px 9px",borderRadius:20,border:`1px solid ${active?"#111827":"#d1d5db"}`,cursor:"pointer",fontSize:11,fontWeight:600,background:active?"#111827":"#fff",color:active?"#fff":"#6b7280",whiteSpace:"nowrap",minHeight:28}}>{children}</button>;}
+function ABtn({active,onClick,children}){return<button onClick={onClick} style={{padding:"5px 12px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,background:active?"#111827":"#f3f4f6",color:active?"#fff":"#374151",minHeight:32}}>{children}</button>;}
+function Tag({color,bg,children}){return<span style={{fontSize:11,fontWeight:700,color,background:bg,borderRadius:4,padding:"2px 7px",whiteSpace:"nowrap"}}>{children}</span>;}
+function PBtn({onClick,children,style:ext}){return<button onClick={onClick} style={{background:BLUE,color:"#fff",border:"none",borderRadius:8,padding:"12px 20px",fontSize:14,fontWeight:700,cursor:"pointer",width:"100%",minHeight:44,...ext}}>{children}</button>;}
+function GBtn({onClick,children,style:ext}){return<button onClick={onClick} style={{background:"#f3f4f6",color:"#374151",border:"none",borderRadius:8,padding:"12px 20px",fontSize:14,fontWeight:600,cursor:"pointer",width:"100%",minHeight:44,...ext}}>{children}</button>;}
+function Fld({label,err,children}){return<div style={{marginBottom:10,flex:1}}><label style={{display:"block",fontSize:12,color:"#6b7280",fontWeight:600,marginBottom:4}}>{label}</label>{children}{err&&<div style={{color:"#dc2626",fontSize:11,marginTop:2}}>{err}</div>}</div>;}
+function SLabel({children}){return<div style={{fontWeight:700,color:"#111827",fontSize:12,borderLeft:`3px solid ${BLUE}`,paddingLeft:7,marginBottom:12,marginTop:6}}>{children}</div>;}
+function InfoBox({msg}){return<div style={{background:LBLUE,border:`1px solid #bfdbfe`,borderRadius:8,padding:"9px 12px",fontSize:12,color:"#1e40af",marginBottom:14,lineHeight:1.6}}>{msg}</div>;}
+function WarnBox({msg}){return<div style={{background:"#fffbeb",border:"1px solid #fde68a",borderRadius:8,padding:"11px 14px",fontSize:13,color:"#92400e",marginBottom:8,lineHeight:1.6}}>{msg}</div>;}
+function SuccessBox({msg}){return<div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:8,padding:"11px 14px",fontSize:13,color:"#15803d",marginBottom:8}}>{msg}</div>;}
+function EmptyMsg({msg}){return<div style={{textAlign:"center",padding:"22px",color:"#9ca3af",fontSize:13,background:"#f9fafb",borderRadius:8}}>{msg}</div>;}
+function MoreBtn({onClick}){return<button onClick={onClick} style={{width:"100%",padding:"10px",border:"1px solid #e5e7eb",borderRadius:8,background:"#fff",cursor:"pointer",fontSize:12,color:"#6b7280",marginTop:2,minHeight:40}}>더보기 +</button>;}
+/* ══════════════════════════════════════
+   푸터
+══════════════════════════════════════ */
+function Footer({onPolicy,isMobile,cfg,onAdminClick}){
+  const [clickCount,setClickCount] = React.useState(0);
+  const handleCIClick = () => {
+    const next = clickCount + 1;
+    setClickCount(next);
+    if(next >= 7){ setClickCount(0); onAdminClick(); }
+  };
+  return(
+    <footer style={{position:"relative",zIndex:1,background:"#1f2937",marginTop:48,marginBottom:0,padding:0}}>
+      <div style={{maxWidth:1100,margin:"0 auto",padding:isMobile?"12px 14px":"0 20px",
+        display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,minHeight:52}}>
+        <div style={{display:"flex",alignItems:"center",gap:isMobile?10:20,flexWrap:"wrap"}}>
+          {/* CI 로고 - 7번 클릭 시 관리자 */}
+          <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAG4AAAAeCAYAAADNeSs6AAAF3klEQVR4nO2bf4hVRRTHPy9lcWtjbcuyDDGpjCLbWLIsQdFCLY3sB5W5JoXRDyMQFM1IEtNSoz8MIxPEH1tWuFquYrVmYZn2A0LKqExN1lDLTI2MTL/9Mfey8+bN/fF2fd516wuXO+fMmTNn7rln5szc93KSaCNYAwyNqNsNTAPmt1R5LpcDoIjxZvVgcqmE2oDjVgHDUsquJdq5sWhvjjut1FYkQDQ77Q2M0fZVBWyz5K8+qda1YWTpuB+tciNwj0fmAHAJUB/QR0ttVATcF+pEX0UjK8ddD/S06EcS5O8I7rtLY86ph6wc96JDb/NK5WMrsKsEtpySyCo5cTtt0XRRDFqZnJTavqL7yjo5CXFG1gbE4LmT0MezxTbIKuIOAxUWXQssLWWHLYi4No2sIu5dh56biRXx6ACUp5TtDywAZgbtSg9JWVy9VYiHS9mnNd4ovOC0icM3gUxVjAySai26Lkb/BKeuj0cXkhaGjKwibguw0+G9jNlwZ4XxwLKgXJYgG9q5P0ZmEvnbF3tsrv5ZDl3h0OOCe7eQkcZxXwCjU8gVg8eAHh7+yd6nTXbou4P73w4/B3QGOgJnAud7dLmb6ZnAQYs+ZpV/SrDrmEPPdflpHNdE+rk+DTYALwXlRqeuEyYa02A8MBbzUg0DBlHcmv0lJmPMAast/giP7JVANVCD9dY7ELAZOJdmJ1Zb9fba19XT/q0Ee0cCXzX3JlVKWiFpiaSlkhZJesWaV1dLGqsTsM5ImmPN21MD3mue9WFlgp4KSd952n0e1cYab4h9jr4Q85S8xoXtliXIjLTo9wJejcUbEaG3X4TOea5glYzxYYMnrboGSQ8o/kG6zpnt4Xe3DNjn1O3yGLkoRV/dnDaNUbJFOC58aePg6o+CnWR86JFF0gaLLgt4Ay3egz7F4dTyG/AH5kD3E2CGFaLHg/B3UQFc4eFvA/p5+Pa87m5qu3vkRwPPe/g2dgM/WPS3CfI2dljlxVZ5hUfWdyhcg5keZfE7O+0ut8pHPHpF/rNqCu528vKZz6aODj2DwoXzIObkfgAwG1gH1AG9gO1A76DdL5h5fCCw19Ex0KHrPIOowrxANiYCfwFTPfIh7EGui5Fz0QdYCIxx+Gs9slOASszLXY7JgG2IQqcB7LHKO4CLE2zqEtzt5KgGuB33mNAK97dlpspRkvZK6hDw10h61JJ7QtL3Fn2jpOMya+QMSRsl1TtTyRHPFOG7LvPPOJoe02ZPCr32eOMQTpNlCXJhX3FoUP5aNd2pnyXpIRVOhZWSeln0ODUvWXmdI2mipMEWPVnS9qC8IuggrKsPOrUfzF5JPa227zv1LuLWrQEeeUl6NUI+xKE4vSkcNynB5qgx+LBZhclJfUR7JFVb/CaZoAlxp6+vMGK6qHCwFcF9lfIdN0jSQUldA3qWpF8lfSRpvaQdkt5U/EMoU8xDlnSr72lIWu7I9bfqauN0emaYpKtDCjtP9FWeVjaNUIPyHYekeyVtkkm/V6nZychkpEkRNyRFv7d52knSx5bM8oB3NHGgxTuuTV9pNqwdKdzYvg5cB1wDDMcs2iEOYDLRODydot+VwCgP/wZgE3AOZtEGGJxCX7EIM8bpJdDt4hmrv1RI47hDwJ8RdWMoHNhZwNkOz80i+2K2Hkmow/+rrmsxWSyYE4cPUuhqKaaUUHeINC9yHlr7Pa4WmAOcZ/F6A1cBSyxeJ/z7mLRflvsCGyPq7id/H+bF/1/A87Ef+NnhbSHfaWD2YpM87f8h3ferT4k+L12E2V/+p9DaiLsL83vIaQEdKqvEHAK7WI/ZyLuYgIncOIzGOCkKW/Gf5ADtL+Ja67hy4D5MAhOewhzHfPqIOq5qAG6JqHsHs179DlyKOV2vBi6wZBYAFwJDInQ8hec3HO3tl8xZpbPDJe2MSPejsFjSRZaOmxPk50vqEcq3YLxZIZV9Wf93oB8m5R+KSe9PD/iHga8xB6yNmCiNwkjgccz2JAqNuVzuJmg/EfcvM9RDiQBn1swAAAAASUVORK5CYII=" height="28" alt="자연앤데시앙" style={{display:"block",mixBlendMode:"screen",opacity:0.9}}/>
+            <span style={{fontSize:12,color:"rgba(255,255,255,.55)",fontWeight:500,whiteSpace:"nowrap"}}>
+              {cfg.footerAptName||"1동탄 숲속마을 자연앤데시앙아파트"}
+            </span>
+          </div>
+
+          <span style={{color:"rgba(255,255,255,.25)",fontSize:13,display:isMobile?"none":"inline"}}>|</span>
+          <span style={{fontSize:12,color:"rgba(255,255,255,.5)"}}>📍 {cfg.footerAddr}</span>
+          <span style={{color:"rgba(255,255,255,.2)",fontSize:13,display:isMobile?"none":"inline"}}>|</span>
+          <a href={cfg.footerSite||"https://www.apti.co.kr/apti/"} target="_blank" rel="noreferrer"
+            style={{fontSize:12,color:"rgba(255,255,255,.5)",textDecoration:"none"}}>🌐 아파트아이</a>
+          <span style={{color:"rgba(255,255,255,.2)",fontSize:13,display:isMobile?"none":"inline"}}>|</span>
+          <button onClick={()=>onAdminClick("board")}
+            style={{background:"transparent",border:"none",
+              padding:"3px 0",cursor:"pointer",fontSize:12,color:"rgba(255,255,255,.5)",fontWeight:500,whiteSpace:"nowrap"}}>
+            📬 건의사항
+          </button>
+        </div>
+
+        {/* 우측: 개인정보처리방침 */}
+        <button onClick={onPolicy}
+          style={{background:"transparent",border:"1px solid rgba(255,255,255,.2)",borderRadius:5,
+            padding:"4px 12px",cursor:"pointer",fontSize:11,color:"rgba(255,255,255,.4)",fontWeight:600,flexShrink:0,whiteSpace:"nowrap"}}>
+          개인정보 처리방침
+        </button>
+      </div>
+    </footer>
+  );
+}
+
+/* ══════════════════════════════════════
+   개인정보 처리방침 모달
+══════════════════════════════════════ */
+function PolicyModal({onClose}){
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:600,padding:"20px",overflowY:"auto"}}>
+      <div style={{background:"#fff",borderRadius:14,width:"100%",maxWidth:700,padding:"32px 32px 28px",boxShadow:"0 8px 40px rgba(0,0,0,.2)",marginTop:20,marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24,paddingBottom:16,borderBottom:"2px solid #1f2937"}}>
+          <div>
+            <h2 style={{fontWeight:800,fontSize:18,color:"#111827"}}>개인정보 처리방침</h2>
+            <p style={{fontSize:12,color:"#9ca3af",marginTop:4}}>숲속마을 자연앤데시앙아파트 입주자대표회의 · 시행일: 2025년 1월 1일</p>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"#9ca3af"}}>✕</button>
+        </div>
+
+        <div style={{fontSize:13,color:"#374151",lineHeight:1.85,overflowY:"auto",maxHeight:"70vh"}}>
+
+          <PolicySection num="1" title="개인정보처리자 정보">
+            <PolicyTable rows={[
+              ["처리자명","숲속마을 자연앤데시앙아파트 입주자대표회의"],
+              ["대 표 자","입주자대표회의 회장"],
+              ["소 재 지","경기도 OO시 OO구 데시앙로 123"],
+              ["연 락 처","관리사무소 (031-000-0000)"],
+              ["이 메 일","manager@desiang.co.kr"],
+            ]}/>
+            <p style={{marginTop:8,color:"#6b7280"}}>본 플랫폼은 「공동주택관리법」 제14조에 따라 구성된 입주자대표회의(공동주택의 입주자등을 대표하여 관리에 관한 주요사항을 결정하는 자치 의결기구)가 공동주택 관리 목적으로 운영합니다.</p>
+          </PolicySection>
+
+          <PolicySection num="2" title="개인정보의 수집 항목 및 수집 근거">
+            <PolicyTable rows={[
+              ["수집 항목","동·호수, 성명, 전화번호"],
+              ["수집 방법","플랫폼 내 직접 입력(동의 후 수집)"],
+              ["법적 근거","개인정보 보호법 제15조 제1항 제1호(정보주체 동의), 제15조 제1항 제2호(법령상 의무 이행)"],
+            ]}/>
+            <p style={{marginTop:8,color:"#6b7280"}}>입주자대표회의는 「개인정보 보호법」 제2조 제5호에 따른 개인정보처리자에 해당하며, 동법 제3조에 따라 목적에 필요한 최소한의 개인정보만 적법·정당하게 수집합니다.</p>
+          </PolicySection>
+
+          <PolicySection num="3" title="개인정보의 처리 목적">
+            <ul style={{paddingLeft:16,lineHeight:2}}>
+              <li>안건 제안자 본인 확인 및 중복 신청 방지</li>
+              <li>정책 자문 투표·설문 참여자 본인 확인 및 중복 투표 방지</li>
+              <li>건의사항 접수자 확인 및 답변 회신</li>
+              <li>입주자대표회의 회의 결과 및 처리 결과 통보(필요 시)</li>
+            </ul>
+            <p style={{marginTop:8,color:"#6b7280"}}>수집한 개인정보는 위 목적 이외의 용도로는 이용하지 않습니다(개인정보 보호법 제3조 제2항).</p>
+          </PolicySection>
+
+          <PolicySection num="4" title="개인정보의 보유·이용 기간 및 파기">
+            <PolicyTable rows={[
+              ["보유 기간","처리 목적 달성 시까지"],
+              ["파기 시점","안건 의결 완료 / 투표 종료 / 건의사항 처리 완료 후 즉시"],
+              ["파기 방법","전자적 파일: 복구 불가능한 방법으로 영구 삭제"],
+            ]}/>
+            <p style={{marginTop:8,color:"#6b7280"}}>단, 관련 법령에 따라 보존 의무가 있는 경우 해당 기간까지 보관합니다(개인정보 보호법 제21조).</p>
+          </PolicySection>
+
+          <PolicySection num="5" title="개인정보의 제3자 제공">
+            <p>입주자대표회의는 정보주체의 동의 없이 개인정보를 제3자에게 제공하지 않습니다. 다만, 아래의 경우는 예외입니다(개인정보 보호법 제17조).</p>
+            <ul style={{paddingLeft:16,lineHeight:2,marginTop:6}}>
+              <li>정보주체가 사전에 동의한 경우</li>
+              <li>법령의 규정에 의거하거나 수사·조사 목적으로 관계기관의 적법한 요청이 있는 경우</li>
+            </ul>
+          </PolicySection>
+
+          <PolicySection num="6" title="개인정보의 안전성 확보 조치">
+            <p>입주자대표회의는 「개인정보 보호법」 제29조에 따라 아래 안전성 확보 조치를 시행합니다.</p>
+            <ul style={{paddingLeft:16,lineHeight:2,marginTop:6}}>
+              <li>관리자 계정 비밀번호 암호화 관리</li>
+              <li>개인정보 접근 권한을 관리자(입주자대표회의)로 엄격히 제한</li>
+              <li>전화번호 마스킹 처리 – 공개 화면에서 식별 불가 수준으로 가공</li>
+              <li>동·호수·이름 마스킹 처리 – 목록·상세 화면에서 부분 공개</li>
+            </ul>
+          </PolicySection>
+
+          <PolicySection num="7" title="정보주체의 권리·의무 및 행사 방법">
+            <p>정보주체(입주민)는 「개인정보 보호법」 제4조에 따라 언제든지 다음 권리를 행사할 수 있습니다.</p>
+            <ul style={{paddingLeft:16,lineHeight:2,marginTop:6}}>
+              <li>개인정보 처리에 관한 열람 요청 (제35조)</li>
+              <li>오류 정정 요청 (제36조)</li>
+              <li>삭제 요청 (제36조)</li>
+              <li>처리 정지 요청 (제37조)</li>
+            </ul>
+            <p style={{marginTop:8}}>권리 행사는 관리사무소 방문 또는 아래 개인정보 보호책임자에게 서면·전화·이메일로 요청하십시오. 입주자대표회의는 요청을 받은 날로부터 10일 이내에 조치 결과를 통지합니다.</p>
+          </PolicySection>
+
+          <PolicySection num="8" title="개인정보 보호책임자">
+            <PolicyTable rows={[
+              ["직 책","입주자대표회의 회장 (개인정보 보호책임자)"],
+              ["연 락 처","관리사무소 031-000-0000"],
+              ["이 메 일","manager@desiang.co.kr"],
+            ]}/>
+          </PolicySection>
+
+          <PolicySection num="9" title="개인정보 처리방침 변경">
+            <p>본 방침은 2025년 1월 1일부터 시행됩니다. 내용 변경 시 플랫폼 공지 및 아파트 게시판을 통해 시행 7일 전 사전 안내합니다(개인정보 보호법 제30조).</p>
+          </PolicySection>
+
+          <div style={{marginTop:20,padding:"12px 16px",background:"#f9fafb",borderRadius:8,fontSize:12,color:"#6b7280",lineHeight:1.7}}>
+            ※ 개인정보 처리에 관한 불만 또는 피해 구제는 개인정보보호위원회(<b>privacy.go.kr</b>) 또는 개인정보 분쟁조정위원회(<b>kopico.go.kr</b>)에 신청하실 수 있습니다.
+          </div>
+        </div>
+
+        <div style={{marginTop:20,paddingTop:16,borderTop:"1px solid #f3f4f6",textAlign:"right"}}>
+          <button onClick={onClose}
+            style={{padding:"10px 28px",borderRadius:8,border:"none",background:"#1f2937",color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>
+            확인
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function PolicySection({num,title,children}){
+  return(
+    <div style={{marginBottom:22}}>
+      <h3 style={{fontWeight:700,fontSize:14,color:"#111827",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
+        <span style={{background:"#1f2937",color:"#fff",borderRadius:"50%",width:20,height:20,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,flexShrink:0}}>{num}</span>
+        {title}
+      </h3>
+      {children}
+    </div>
+  );
+}
+function PolicyTable({rows}){
+  return(
+    <table style={{width:"100%",borderCollapse:"collapse",fontSize:13,marginTop:8}}>
+      <tbody>
+        {rows.map(([l,v])=>(
+          <tr key={l}>
+            <td style={{padding:"7px 12px",background:"#f9fafb",fontWeight:600,color:"#374151",whiteSpace:"nowrap",width:120,borderBottom:"1px solid #e5e7eb",verticalAlign:"top"}}>{l}</td>
+            <td style={{padding:"7px 12px",color:"#6b7280",borderBottom:"1px solid #e5e7eb"}}>{v}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function Toast({msg,type}){return<div style={{position:"fixed",bottom:20,left:"50%",transform:"translateX(-50%)",background:type==="err"?"#dc2626":"#111827",color:"#fff",padding:"10px 20px",borderRadius:8,fontWeight:600,fontSize:13,boxShadow:"0 4px 20px rgba(0,0,0,.2)",zIndex:9999,whiteSpace:"nowrap",maxWidth:"90vw",textOverflow:"ellipsis",overflow:"hidden"}}>{type==="err"?"✗ ":"✓ "}{msg}</div>;}
+
+const S={
+  inp:{width:"100%",padding:"10px 12px",border:"1px solid #e5e7eb",borderRadius:8,fontSize:14,color:"#111827",background:"#fff",outline:"none",boxSizing:"border-box",WebkitAppearance:"none",minHeight:44},
+  adminRow:{background:"#fff",borderRadius:10,padding:"14px 16px",border:"1px solid #e5e7eb",boxShadow:"0 1px 4px rgba(0,0,0,.04)"},
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>

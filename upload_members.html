@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>입주민 명단 관리 - 자연앤데시앙</title>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Noto Sans KR',sans-serif;background:#f7f8fa;color:#1f2937;min-height:100vh;display:flex;flex-direction:column;}
+input,button,select{font-family:'Noto Sans KR',sans-serif;}
+
+/* 헤더 */
+.header{background:#1f2937;padding:0 24px;height:56px;display:flex;align-items:center;justify-content:space-between;}
+.header-left{display:flex;align-items:center;gap:10px;}
+.header-logo{font-size:13px;font-weight:800;color:rgba(255,255,255,.85);letter-spacing:2px;}
+.header-title{font-size:14px;font-weight:600;color:rgba(255,255,255,.6);}
+.header-badge{background:rgba(255,255,255,.12);color:rgba(255,255,255,.7);font-size:11px;padding:2px 10px;border-radius:20px;}
+
+/* 메인 */
+.main{flex:1;max-width:780px;margin:0 auto;padding:32px 20px;width:100%;}
+
+/* 로그인 */
+.login-card{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:40px 36px;max-width:380px;margin:60px auto;}
+.login-card h2{font-size:18px;font-weight:800;color:#111827;margin-bottom:4px;}
+.login-card p{font-size:13px;color:#9ca3af;margin-bottom:24px;}
+
+/* 카드 */
+.card{background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:28px 32px;margin-bottom:20px;box-shadow:0 1px 6px rgba(0,0,0,.05);}
+.card-title{font-size:15px;font-weight:700;color:#111827;margin-bottom:4px;}
+.card-sub{font-size:12px;color:#9ca3af;margin-bottom:20px;}
+
+/* 상태 카드 */
+.stat-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:24px;}
+.stat-box{background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;padding:18px 20px;}
+.stat-n{font-size:32px;font-weight:900;color:#1f2937;line-height:1;}
+.stat-l{font-size:12px;color:#9ca3af;margin-top:4px;}
+.stat-box.highlight .stat-n{color:#2563eb;}
+
+/* 업로드 영역 */
+.dropzone{border:2px dashed #d1d5db;border-radius:10px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;background:#fafafa;}
+.dropzone:hover,.dropzone.over{border-color:#2563eb;background:#eff6ff;}
+.dropzone-icon{font-size:36px;margin-bottom:10px;}
+.dropzone-text{font-size:14px;color:#374151;font-weight:500;margin-bottom:4px;}
+.dropzone-sub{font-size:12px;color:#9ca3af;}
+#file-input{display:none;}
+
+/* 미리보기 */
+.preview-wrap{max-height:260px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;margin-top:16px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{background:#f9fafb;position:sticky;top:0;}
+th,td{padding:9px 14px;text-align:left;border-bottom:1px solid #f3f4f6;}
+th{font-weight:700;color:#374151;}
+td{color:#6b7280;}
+.row-num{color:#d1d5db;font-size:11px;width:32px;}
+
+/* 컬럼 매핑 */
+.map-row{display:flex;gap:10px;align-items:center;margin-bottom:10px;}
+.map-label{font-size:13px;font-weight:600;color:#374151;width:60px;flex-shrink:0;}
+select.map-sel{flex:1;padding:8px 10px;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;color:#111827;}
+
+/* 버튼 */
+.btn-primary{background:#1f2937;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%;}
+.btn-primary:hover{background:#374151;}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+.btn-danger{background:#dc2626;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;}
+.btn-sm{padding:6px 14px;font-size:12px;}
+
+/* 결과 */
+.result{border-radius:8px;padding:14px 16px;font-size:13px;margin-top:16px;display:none;}
+.result.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;}
+.result.err{background:#fee2e2;border:1px solid #fecaca;color:#dc2626;}
+
+/* 안내 */
+.guide{background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;font-size:12px;color:#92400e;line-height:1.8;margin-bottom:20px;}
+.guide b{font-weight:700;}
+
+input[type=password],input[type=text]{width:100%;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;color:#111827;outline:none;}
+input:focus{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.12);}
+label.field-label{display:block;font-size:12px;font-weight:600;color:#6b7280;margin-bottom:5px;}
+
+/* 로딩 오버레이 */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center;flex-direction:column;gap:12px;}
+.overlay.show{display:flex;}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.overlay-text{color:#fff;font-size:14px;font-weight:600;}
+</style>
+</head>
+<body>
+
+<!-- 헤더 -->
+<div class="header">
+  <div class="header-left">
+    <span class="header-logo">DESIAN</span>
+    <span class="header-title">입주민 명단 관리</span>
+  </div>
+  <span class="header-badge">관리자 전용</span>
+</div>
+
+<!-- 로딩 오버레이 -->
+<div class="overlay" id="overlay">
+  <div class="spinner"></div>
+  <div class="overlay-text" id="overlay-text">업로드 중...</div>
+</div>
+
+<!-- 메인 -->
+<div class="main">
+
+  <!-- 로그인 -->
+  <div class="login-card" id="login-card">
+    <h2>관리자 인증</h2>
+    <p>입주민 명단 관리 시스템에 접근하려면 관리자 비밀번호가 필요합니다.</p>
+    <label class="field-label">관리자 비밀번호</label>
+    <input type="password" id="pw-input" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')login()"/>
+    <div id="login-err" style="color:#dc2626;font-size:12px;margin-top:6px;display:none;">비밀번호가 올바르지 않습니다.</div>
+    <button class="btn-primary" onclick="login()" style="margin-top:16px;">로그인</button>
+    <p style="text-align:center;color:#d1d5db;font-size:11px;margin-top:12px;">GAS URL 설정 후 사용 가능합니다</p>
+  </div>
+
+  <!-- 대시보드 (로그인 후) -->
+  <div id="dashboard" style="display:none;">
+
+    <!-- 현황 카드 -->
+    <div class="card">
+      <div class="card-title">📊 현재 입주민 현황</div>
+      <div class="card-sub">Google Sheets MEMBERS 시트 기준</div>
+      <div class="stat-row">
+        <div class="stat-box highlight">
+          <div class="stat-n" id="stat-count">-</div>
+          <div class="stat-l">등록 세대수</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-n" id="stat-date" style="font-size:16px;margin-top:6px;">-</div>
+          <div class="stat-l">마지막 업데이트</div>
+        </div>
+      </div>
+      <button class="btn-primary" style="width:auto;padding:8px 18px;font-size:13px;" onclick="loadInfo()">🔄 새로고침</button>
+    </div>
+
+    <!-- 안내 -->
+    <div class="guide">
+      <b>엑셀 파일 준비 방법</b><br/>
+      · 첫 번째 행: 컬럼 헤더 (동, 호, 이름 또는 영문 dong, ho, name)<br/>
+      · 예시: <b>동</b> | <b>호</b> | <b>이름</b> → 101 | 101 | 홍길동<br/>
+      · 지원 형식: .xlsx, .xls, .csv<br/>
+      · 업로드 시 기존 명단은 <b>전체 교체</b>됩니다 (덮어쓰기)
+    </div>
+
+    <!-- 업로드 카드 -->
+    <div class="card">
+      <div class="card-title">📂 엑셀 파일 업로드</div>
+      <div class="card-sub">입주민 명단 엑셀을 업로드하면 Google Sheets에 자동 반영됩니다.</div>
+
+      <!-- 드래그앤드롭 영역 -->
+      <div class="dropzone" id="dropzone"
+           onclick="document.getElementById('file-input').click()"
+           ondragover="onDragOver(event)"
+           ondragleave="onDragLeave(event)"
+           ondrop="onDrop(event)">
+        <div class="dropzone-icon">📋</div>
+        <div class="dropzone-text">파일을 여기에 드래그하거나 클릭하여 선택</div>
+        <div class="dropzone-sub">.xlsx · .xls · .csv 지원</div>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv" onchange="onFileSelect(event)"/>
+
+      <!-- 컬럼 매핑 (파일 선택 후 표시) -->
+      <div id="mapping-area" style="display:none;margin-top:20px;">
+        <div style="font-weight:700;font-size:13px;color:#111827;margin-bottom:12px;">컬럼 매핑 확인</div>
+        <div class="map-row">
+          <span class="map-label">동 (dong)</span>
+          <select class="map-sel" id="map-dong"><option value="">선택</option></select>
+        </div>
+        <div class="map-row">
+          <span class="map-label">호 (ho)</span>
+          <select class="map-sel" id="map-ho"><option value="">선택</option></select>
+        </div>
+        <div class="map-row">
+          <span class="map-label">이름 (name)</span>
+          <select class="map-sel" id="map-name"><option value="">선택</option></select>
+        </div>
+      </div>
+
+      <!-- 미리보기 -->
+      <div id="preview-area" style="display:none;margin-top:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:700;color:#111827;">미리보기</span>
+          <span id="preview-count" style="font-size:12px;color:#9ca3af;"></span>
+        </div>
+        <div class="preview-wrap">
+          <table>
+            <thead><tr><th class="row-num">#</th><th>동</th><th>호</th><th>이름</th></tr></thead>
+            <tbody id="preview-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 업로드 결과 -->
+      <div class="result" id="upload-result"></div>
+
+      <!-- 업로드 버튼 -->
+      <button class="btn-primary" id="upload-btn" onclick="upload()" style="margin-top:20px;display:none;">
+        ☁️ Google Sheets에 업로드
+      </button>
+    </div>
+
+  </div><!-- /dashboard -->
+</div><!-- /main -->
+
+<!-- 푸터 -->
+<div style="background:#f0f0f2;border-top:1px solid #e5e7eb;padding:12px 24px;text-align:center;font-size:11px;color:#9ca3af;">
+  숲속마을 자연앤데시앙아파트 입주자대표회의 · 관리자 전용 시스템
+</div>
+
+<script>
+/* ── 설정 ─────────────────────────────── */
+const GAS_URL = 'YOUR_GAS_URL_HERE'; // ← Code.gs 배포 URL
+const ADM_PW_LOCAL = 'admin1234';    // ← 로컬 폴백 비밀번호
+
+let adminPw  = '';
+let rawData  = [];   // 파싱된 전체 행
+let headers  = [];   // 헤더 행
+
+/* ── 로딩 오버레이 ─────────────────────── */
+function showLoading(msg='처리 중...'){
+  document.getElementById('overlay-text').textContent = msg;
+  document.getElementById('overlay').classList.add('show');
+}
+function hideLoading(){ document.getElementById('overlay').classList.remove('show'); }
+
+/* ── 로그인 ─────────────────────────────── */
+async function login(){
+  const pw = document.getElementById('pw-input').value;
+  if(!pw){ return; }
+
+  showLoading('인증 중...');
+  try {
+    let ok = false;
+    if(GAS_URL !== 'YOUR_GAS_URL_HERE'){
+      const res = await gasPost({action:'adminLogin', pw});
+      ok = res.ok && res.data;
+    } else {
+      ok = (pw === ADM_PW_LOCAL);
+    }
+
+    if(ok){
+      adminPw = pw;
+      document.getElementById('login-card').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadInfo();
+    } else {
+      document.getElementById('login-err').style.display = 'block';
+    }
+  } catch(e){
+    if(pw === ADM_PW_LOCAL){
+      adminPw = pw;
+      document.getElementById('login-card').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      loadInfo();
+    }
+  } finally { hideLoading(); }
+}
+
+/* ── 현황 로드 ─────────────────────────── */
+async function loadInfo(){
+  document.getElementById('stat-count').textContent = '...';
+  document.getElementById('stat-date').textContent  = '...';
+  try {
+    if(GAS_URL === 'YOUR_GAS_URL_HERE'){
+      document.getElementById('stat-count').textContent = 'GAS 미연결';
+      document.getElementById('stat-date').textContent  = '-';
+      return;
+    }
+    const res = await gasPost({action:'getMembersInfo', adminPw});
+    if(res.ok && res.data){
+      document.getElementById('stat-count').textContent = res.data.count + ' 세대';
+      document.getElementById('stat-date').textContent  = res.data.updatedAt || '없음';
+    }
+  } catch(e){
+    document.getElementById('stat-count').textContent = '오류';
+  }
+}
+
+/* ── 파일 선택 ─────────────────────────── */
+function onFileSelect(e){ processFile(e.target.files[0]); }
+function onDragOver(e){ e.preventDefault(); document.getElementById('dropzone').classList.add('over'); }
+function onDragLeave(e){ document.getElementById('dropzone').classList.remove('over'); }
+function onDrop(e){
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('over');
+  const file = e.dataTransfer.files[0];
+  if(file) processFile(file);
+}
+
+function processFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    const data = new Uint8Array(e.target.result);
+    const wb   = XLSX.read(data, {type:'array'});
+    const ws   = wb.Sheets[wb.SheetNames[0]];
+    const json = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+
+    if(json.length < 2){
+      showResult('err','데이터가 없습니다. 헤더 + 데이터 행이 필요합니다.');
+      return;
+    }
+
+    headers = json[0].map(h => String(h).trim());
+    rawData = json.slice(1).filter(r => r.some(v => v !== ''));
+
+    // 드롭존 텍스트 업데이트
+    document.getElementById('dropzone').querySelector('.dropzone-text').textContent = '✅ ' + file.name;
+
+    // 컬럼 매핑 자동 추론
+    setupMapping();
+    updatePreview();
+
+    document.getElementById('mapping-area').style.display = 'block';
+    document.getElementById('preview-area').style.display = 'block';
+    document.getElementById('upload-btn').style.display   = 'block';
+    document.getElementById('upload-result').style.display = 'none';
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ── 컬럼 매핑 ─────────────────────────── */
+const AUTO_MAP = {
+  dong: ['dong','동','동번호','단지동','건물동'],
+  ho:   ['ho','호','호수','호번호','세대호'],
+  name: ['name','이름','성명','세대주','세대주이름'],
+};
+
+function setupMapping(){
+  ['dong','ho','name'].forEach(field => {
+    const sel = document.getElementById('map-' + field);
+    sel.innerHTML = '<option value="">선택</option>';
+    headers.forEach(h => {
+      const opt = document.createElement('option');
+      opt.value = h; opt.textContent = h;
+      sel.appendChild(opt);
+    });
+    // 자동 선택
+    const match = headers.find(h => AUTO_MAP[field].includes(String(h).toLowerCase().trim()));
+    if(match) sel.value = match;
+    sel.onchange = updatePreview;
+  });
+}
+
+function getMapped(){
+  const d = document.getElementById('map-dong').value;
+  const h = document.getElementById('map-ho').value;
+  const n = document.getElementById('map-name').value;
+  return {d, h, n, valid: !!(d && h && n)};
+}
+
+function updatePreview(){
+  const {d, h, n, valid} = getMapped();
+  const tbody = document.getElementById('preview-body');
+  tbody.innerHTML = '';
+
+  const rows = valid ? rawData.map(r => ({
+    dong: String(r[headers.indexOf(d)] ?? '').trim(),
+    ho:   String(r[headers.indexOf(h)] ?? '').trim(),
+    name: String(r[headers.indexOf(n)] ?? '').trim(),
+  })).filter(r => r.dong && r.ho && r.name) : [];
+
+  document.getElementById('preview-count').textContent = `총 ${rows.length}세대`;
+
+  rows.slice(0, 50).forEach((r, i) => {
+    const tr = tbody.insertRow();
+    tr.innerHTML = `<td class="row-num">${i+1}</td><td>${r.dong}</td><td>${r.ho}</td><td>${r.name}</td>`;
+  });
+  if(rows.length > 50){
+    const tr = tbody.insertRow();
+    tr.innerHTML = `<td colspan="4" style="text-align:center;color:#9ca3af;padding:8px;">... 외 ${rows.length-50}세대</td>`;
+  }
+}
+
+/* ── 업로드 ─────────────────────────────── */
+async function upload(){
+  const {d, h, n, valid} = getMapped();
+  if(!valid){ showResult('err','동·호·이름 컬럼을 모두 선택해주세요.'); return; }
+
+  const rows = rawData.map(r => ({
+    dong: String(r[headers.indexOf(d)] ?? '').trim(),
+    ho:   String(r[headers.indexOf(h)] ?? '').trim(),
+    name: String(r[headers.indexOf(n)] ?? '').trim(),
+  })).filter(r => r.dong && r.ho && r.name);
+
+  if(rows.length === 0){ showResult('err','유효한 데이터가 없습니다.'); return; }
+
+  if(!confirm(`총 ${rows.length}세대를 Google Sheets에 업로드합니다.\n기존 명단은 전체 교체됩니다. 계속하시겠습니까?`)) return;
+
+  showLoading(`${rows.length}세대 업로드 중...`);
+  try {
+    if(GAS_URL === 'YOUR_GAS_URL_HERE'){
+      showResult('ok',`[테스트] ${rows.length}세대 업로드 완료 (GAS 미연결 - 실제 저장 안됨)`);
+      return;
+    }
+    const res = await gasPost({action:'uploadMembers', rows, adminPw});
+    if(res.ok && res.data && res.data.ok){
+      showResult('ok', `✅ ${res.data.count}세대 업로드 완료 (${res.data.updatedAt})`);
+      loadInfo();
+    } else {
+      showResult('err', res.data?.error || '업로드 실패');
+    }
+  } catch(e){
+    showResult('err','오류: ' + e.message);
+  } finally { hideLoading(); }
+}
+
+function showResult(type, msg){
+  const el = document.getElementById('upload-result');
+  el.style.display = 'block';
+  el.className = 'result ' + type;
+  el.textContent = msg;
+}
+
+/* ── GAS 통신 ─────────────────────────── */
+async function gasPost(body){
+  const res = await fetch(GAS_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+  });
+  return res.json();
+}
+
+/* 엔터키 로그인 */
+document.getElementById('pw-input').addEventListener('keydown', e => {
+  if(e.key === 'Enter') login();
+});
+</script>
+</body>
+</html>
