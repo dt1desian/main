@@ -135,7 +135,7 @@ function Toast({ msg, type }) {
 async function verifyMember(dong, ho, name) {
   if (GAS_URL === "YOUR_GAS_URL_HERE") return true;
   try {
-    const r = await fetch(GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "verifyMember", dong, ho, name }) });
+    const r = await fetch(GAS_URL, { method: "POST", headers: { "Content-Type": "text/plain" }, body: JSON.stringify({ action: "verifyMember", dong, ho, name }) });
     const d = await r.json();
     return d.ok && d.data && d.data.verified;
   } catch (e) {
@@ -143,8 +143,11 @@ async function verifyMember(dong, ho, name) {
   }
 }
 async function mGasPost(body) {
-  const r = await fetch(GAS_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  return r.json();
+  try{
+    const d=encodeURIComponent(JSON.stringify(body));
+    const r=await fetch(GAS_URL+"?d="+d);
+    return r.json();
+  }catch(e){return{ok:false,error:e.message};}
 }
 function App() {
   const [tab, setTab] = useState("home");
