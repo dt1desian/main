@@ -1,5 +1,6 @@
 
 
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -211,68 +212,18 @@ const maskName = (s) => {
   return cho[Math.floor(code / 588)] + "**";
 };
 const maskPh = (p) => (p || "").replace(/(\d{3})-(\d{4})-(\d{4})/, "$1-****-$3");
-
-const CE = React.createElement;
-const cleanDigits = (v, maxLen) => String(v || "").replace(/\D/g, "").slice(0, maxLen);
-const cleanNameText = (v) => String(v || "").replace(/[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").slice(0, 20);
-const isValidDong = (v) => /^\d{3}$/.test(String(v || ""));
-const isValidHo = (v) => /^\d{3,4}$/.test(String(v || ""));
-const isValidName = (v) => /^[가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z\s]+$/.test(String(v || "").trim());
-const residentErrMsg = "동은 3자리 숫자, 호수는 3~4자리 숫자, 이름은 텍스트만 입력하세요.";
-const residentErrors = (f) => {
-  const e = {};
-  if (!isValidDong(f.dong)) e.dong = "3자리 숫자";
-  if (!isValidHo(f.ho)) e.ho = "3~4자리 숫자";
-  if (!isValidName(f.name)) e.name = "텍스트만";
-  return e;
+const onlyDigits = (v, maxLen) => String(v || "").replace(/\D/g, "").slice(0, maxLen || 20);
+const onlyNameText = (v) => String(v || "").replace(/[^가-힣a-zA-Z\s]/g, "");
+const isDong3 = (v) => /^\d{3}$/.test(String(v || "").trim());
+const isHo34 = (v) => /^\d{3,4}$/.test(String(v || "").trim());
+const isNameText = (v) => /^[가-힣a-zA-Z\s]+$/.test(String(v || "").trim());
+const sameOwner = (a, b) => !!a && !!b && String(a.dong || "").trim() === String(b.dong || "").trim() && String(a.ho || "").trim() === String(b.ho || "").trim() && String(a.name || "").trim() === String(b.name || "").trim();
+const validatePersonText = (f) => {
+  if (!isDong3(f.dong)) return "동은 숫자 3자리로 입력해 주세요.";
+  if (!isHo34(f.ho)) return "호수는 숫자 3~4자리로 입력해 주세요.";
+  if (!isNameText(f.name)) return "이름은 한글 또는 영문만 입력해 주세요.";
+  return "";
 };
-const appNow = () => typeof nowDT === "function" ? nowDT() : today();
-function SmallBtn({ children, onClick, danger, style }) {
-  return CE("button", { onClick, style: __spreadValues({ padding: "7px 12px", borderRadius: 7, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: danger ? "#dc2626" : "#111827", color: "#fff", minHeight: 34 }, style || {}) }, children);
-}
-function ResidentInputRow({ f, setF, err, phoneRequired }) {
-  return CE(React.Fragment, null,
-    CE("div", { style: { display: "flex", gap: 10 } },
-      CE(Fld, { label: "동", err: err && err.dong }, CE("input", { style: S.inp, inputMode: "numeric", maxLength: 3, placeholder: "예: 101", value: f.dong || "", onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: cleanDigits(e.target.value, 3) })) })),
-      CE(Fld, { label: "호", err: err && err.ho }, CE("input", { style: S.inp, inputMode: "numeric", maxLength: 4, placeholder: "예: 1502", value: f.ho || "", onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: cleanDigits(e.target.value, 4) })) }))
-    ),
-    CE("div", { style: { display: "flex", gap: 10 } },
-      CE(Fld, { label: "이름", err: err && err.name }, CE("input", { style: S.inp, placeholder: "실명", value: f.name || "", onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: cleanNameText(e.target.value) })) })),
-      CE(Fld, { label: phoneRequired ? "전화번호" : "전화번호(선택)", err: err && err.phone }, CE("input", { style: S.inp, placeholder: "010-0000-0000", value: f.phone || "", onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))
-    )
-  );
-}
-function OwnerAuthBox({ person, onVerified, onCancel, notify, title }) {
-  const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "" });
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState({});
-  const verify = async () => {
-    const ve = residentErrors(f);
-    setErr(ve);
-    if (Object.keys(ve).length) { notify(residentErrMsg, "err"); return; }
-    setBusy(true);
-    const memberOk = await verifyMember(f.dong, f.ho, f.name);
-    setBusy(false);
-    if (!memberOk) { notify("입주민 정보가 일치하지 않습니다.", "err"); return; }
-    if (f.dong === person.dong && f.ho === person.ho && f.name === person.name) onVerified();
-    else notify("최초 입력한 작성자 정보와 일치하지 않습니다.", "err");
-  };
-  return CE("div", { style: { marginTop: 14, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 } },
-    CE("div", { style: { fontWeight: 800, fontSize: 14, color: "#111827", marginBottom: 10 } }, title || "작성자 본인 확인"),
-    CE("div", { style: { fontSize: 12, color: "#6b7280", lineHeight: 1.6, marginBottom: 12 } }, "최초 입력한 동·호수·이름이 일치해야 수정/삭제할 수 있습니다."),
-    CE(ResidentInputRow, { f, setF, err }),
-    CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 10 } },
-      CE(PBtn, { onClick: verify }, busy ? "확인 중..." : "본인 확인"),
-      CE(GBtn, { onClick: onCancel }, "취소")
-    )
-  );
-}
-function validateResidentInto(e, f, phoneRequired) {
-  const ve = residentErrors(f);
-  Object.assign(e, ve);
-  if (phoneRequired && !String(f.phone || "").trim()) e.phone = "전화번호를 입력하세요.";
-  return e;
-}
 
 const pad2 = (n) => String(n).padStart(2, "0");
 const localDate = (d) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
@@ -410,15 +361,13 @@ function App() {
     setMenuOpen(false);
     window.scrollTo(0, 0);
   };
-  const patchAg = (id, p) => {
+  const patchAg = (id, p, auth = null) => {
     setAg((prev) => prev.map((a) => a.id === id ? __spreadValues(__spreadValues({}, a), p) : a));
-    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchAg", id, patch: p, adminPw: "admin1234" }).catch(() => {
-    });
-  };
-  const deleteAg = (id) => {
-    setAg((prev) => prev.filter((a) => a.id !== id));
-    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "deleteAg", id, adminPw: "admin1234" }).catch(() => {
-    });
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
+      const body = { action: "patchAg", id, patch: p };
+      if (auth) body.auth = auth; else body.adminPw = "admin1234";
+      gasCall(body).catch(() => {});
+    }
   };
   const addAg = (a) => {
     setAg((p) => [a, ...p]);
@@ -437,20 +386,42 @@ function App() {
     if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "addBoard", data: b }).catch(() => {
     });
   };
-  const patchBoard = (id, p) => {
+  const patchBoard = (id, p, auth = null) => {
     setBoard((prev) => prev.map((b) => b.id === id ? __spreadValues(__spreadValues({}, b), p) : b));
-    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchBoard", id, patch: p, adminPw: "admin1234" }).catch(() => {
-    });
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
+      const body = { action: "patchBoard", id, patch: p };
+      if (auth) body.auth = auth; else body.adminPw = "admin1234";
+      gasCall(body).catch(() => {});
+    }
   };
-  const deleteBoard = (id) => {
+  const deleteAg = (id, auth = null) => {
+    setAg((prev) => prev.filter((a) => a.id !== id));
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
+      const body = { action: "deleteAg", id };
+      if (auth) body.auth = auth; else body.adminPw = "admin1234";
+      gasCall(body).catch(() => {});
+    }
+  };
+  const deleteBoard = (id, auth = null) => {
     setBoard((prev) => prev.filter((b) => b.id !== id));
-    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "deleteBoard", id, adminPw: "admin1234" }).catch(() => {
-    });
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
+      const body = { action: "deleteBoard", id };
+      if (auth) body.auth = auth; else body.adminPw = "admin1234";
+      gasCall(body).catch(() => {});
+    }
   };
   const patchVt = (id, p) => {
     setVt((prev) => prev.map((v) => v.id === id ? __spreadValues(__spreadValues({}, v), p) : v));
     if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchVt", id, patch: p, adminPw: "admin1234" }).catch(() => {
     });
+  };
+  const patchVtVote = (id, auth, patch) => {
+    setVt((prev) => prev.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: (v.votes || []).map((x) => sameOwner(x, auth) ? __spreadValues(__spreadValues({}, x), patch) : x) }) : v));
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchVtVote", id, auth, patch }).catch(() => {});
+  };
+  const deleteVtVote = (id, auth) => {
+    setVt((prev) => prev.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: (v.votes || []).filter((x) => !sameOwner(x, auth)) }) : v));
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "deleteVtVote", id, auth }).catch(() => {});
   };
   const addVt = (v) => {
     setVt((p) => [v, ...p]);
@@ -477,11 +448,9 @@ function App() {
     opacity: 0.02
   } }, /* @__PURE__ */ React.createElement("img", { src: "data:image/png;base64,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", width: "570", alt: "", style: { display: "block", mixBlendMode: "multiply", filter: "invert(1)" } })), /* @__PURE__ */ React.createElement(Header, { cfg, page, nav, adminOk, menuOpen, setMenuOpen, isMobile }), /* @__PURE__ */ React.createElement("div", { className: "pad-main", style: { maxWidth: 1100, margin: "0 auto", position: "relative", zIndex: 1, flex: 1 } }, page === "home" && /* @__PURE__ */ React.createElement(Home, { ag, vt, cfg, board, nav, isMobile }), page === "vote" && sub === "list" && /* @__PURE__ */ React.createElement(VoteList, { vt, nav, isMobile }), page === "vote" && sub === "detail" && selVt && /* @__PURE__ */ React.createElement(VoteDetail, { vt: selVt, onBack: () => nav("vote"), onVote: (id, e) => {
     addVtE(id, e);
-    setVt((p) => p.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: [...v.votes, e] }) : v));
-  }, notify, isMobile }), page === "agenda" && sub === "list" && /* @__PURE__ */ React.createElement(AgendaList, { ag, cfg, nav, isMobile }), page === "agenda" && sub === "detail" && selAg && /* @__PURE__ */ React.createElement(AgendaDetail, { ag: selAg, cfg, onBack: () => nav("agenda"), onPatch: patchAg, onDelete: deleteAg, onSign: (id, sig) => {
+  }, onPatchVote: patchVtVote, onDeleteVote: deleteVtVote, notify, isMobile }), page === "agenda" && sub === "list" && /* @__PURE__ */ React.createElement(AgendaList, { ag, cfg, nav, isMobile }), page === "agenda" && sub === "detail" && selAg && /* @__PURE__ */ React.createElement(AgendaDetail, { ag: selAg, cfg, onBack: () => nav("agenda"), onSign: (id, sig) => {
     addAgSig(id, sig);
-    setAg((p) => p.map((a) => a.id === id ? __spreadProps(__spreadValues({}, a), { sigs: [...a.sigs, sig] }) : a));
-  }, notify, isMobile }), page === "board" && sub === "list" && /* @__PURE__ */ React.createElement(BoardList, { board, nav, isMobile }), page === "board" && sub === "detail" && /* @__PURE__ */ React.createElement(BoardDetail, { post: board.find((b) => b.id === selId), onBack: () => nav("board"), onPatch: patchBoard, onDelete: deleteBoard, notify, isMobile }), page === "board" && sub === "write" && /* @__PURE__ */ React.createElement(BoardWrite, { board, onAdd: addBoard, onBack: () => nav("board"), notify, isMobile }), page === "agenda" && sub === "submit" && /* @__PURE__ */ React.createElement(AgendaSubmit, { ag, onAdd: addAg, onBack: () => nav("agenda"), notify, isMobile }), page === "admin" && (adminOk ? /* @__PURE__ */ React.createElement(AdminPanel, { ag, vt, cfg, board, patchAg, deleteAg, patchBoard, deleteBoard, patchVt, addVt, setCfg, saveCfgToGas, onBack: () => nav("home"), notify, isMobile }) : /* @__PURE__ */ React.createElement(AdminLogin, { pw: adminPw, setPw: setAdminPw, err: adminErr, onLogin: () => {
+  }, onPatchAg: patchAg, onDeleteAg: deleteAg, notify, isMobile }), page === "board" && sub === "list" && /* @__PURE__ */ React.createElement(BoardList, { board, nav, isMobile }), page === "board" && sub === "detail" && /* @__PURE__ */ React.createElement(BoardDetail, { post: board.find((b) => b.id === selId), onBack: () => nav("board"), onPatchBoard: patchBoard, onDeleteBoard: deleteBoard, notify, isMobile }), page === "board" && sub === "write" && /* @__PURE__ */ React.createElement(BoardWrite, { board, onAdd: addBoard, onBack: () => nav("board"), notify, isMobile }), page === "agenda" && sub === "submit" && /* @__PURE__ */ React.createElement(AgendaSubmit, { ag, onAdd: addAg, onBack: () => nav("agenda"), notify, isMobile }), page === "admin" && (adminOk ? /* @__PURE__ */ React.createElement(AdminPanel, { ag, vt, cfg, board, patchAg, deleteAg, patchVt, addVt, patchBoard, deleteBoard, setCfg, saveCfgToGas, onBack: () => nav("home"), notify, isMobile }) : /* @__PURE__ */ React.createElement(AdminLogin, { pw: adminPw, setPw: setAdminPw, err: adminErr, onLogin: () => {
     if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
       gasCall({ action: "adminLogin", pw: adminPw }).then((res) => {
         if (res.ok && res.data) {
@@ -690,66 +659,158 @@ function VoteCard({ v, onClick }) {
     /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", borderTop: "1px solid #f3f4f6", paddingTop: 8 } }, "\uB9C8\uAC10 ", fmt(v.endDate))
   );
 }
-function VoteDetail({ vt, onBack, onVote, notify, isMobile }) {
+function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isMobile }) {
   const [showP, setShowP] = useState(false);
   const [showF, setShowF] = useState(false);
   const [done, setDone] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [auth, setAuth] = useState({ dong: "", ho: "", name: "" });
+  const [verifiedVote, setVerifiedVote] = useState(null);
+  const [verifyErr, setVerifyErr] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [editChoice, setEditChoice] = useState("");
   const si = vtSt(vt);
   const ok = canVote(vt);
   const total = vt.votes.length;
   const tally = vt.options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: vt.votes.filter((x) => x.choice === o).length }), {});
   const showRes = vt.showResult === "always" || vt.showResult === "after" && !ok;
   const maxCnt = Math.max(...Object.values(tally), 1);
-  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 680, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), showP && /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uC815\uCC45\uC790\uBB38 \uCC38\uC5EC", onOk: () => {
-    setShowP(false);
-    setShowF(true);
-  }, onCancel: () => setShowP(false) }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Tag, { color: vt.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: vt.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, vt.type), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, vt.id)), /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, vt.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18 } }, "\u{1F4C5} ", fmt(vt.startDate), " ~ ", fmt(vt.endDate), "\xA0\xB7\xA0\u270B ", total, "\uBA85 \uCC38\uC5EC"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 24, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: `3px solid ${BLUE}` } }, vt.desc), showRes && total > 0 && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 24 } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, "\uC9D1\uACC4 \uACB0\uACFC"), vt.options.map((o) => {
-    const cnt = tally[o] || 0, pct = total > 0 ? Math.round(cnt / total * 100) : 0;
-    const isTop = cnt === maxCnt && cnt > 0;
-    return /* @__PURE__ */ React.createElement("div", { key: o, style: { marginBottom: 10, padding: "11px 14px", background: isTop ? LBLUE : "#f9fafb", borderRadius: 8, border: `1px solid ${isTop ? "#bfdbfe" : "#e5e7eb"}` } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 7 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: isTop ? 700 : 400, fontSize: 14, color: isTop ? BLUE : "#374151" } }, isTop ? "1\uC704  " : "", o), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 700, fontSize: 14, color: isTop ? BLUE : "#6b7280" } }, cnt, "\uBA85 (", pct, "%)")), /* @__PURE__ */ React.createElement("div", { style: { height: 5, background: "rgba(0,0,0,.06)", borderRadius: 3, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: isTop ? BLUE : "#d1d5db", borderRadius: 3 } })));
-  })), vt.showResult === "after" && ok && /* @__PURE__ */ React.createElement(InfoBox, { msg: "\uC815\uCC45\uC790\uBB38 \uACB0\uACFC\uB294 \uC758\uACAC\uC218\uB834 \uAE30\uAC04 \uC885\uB8CC \uD6C4 \uACF5\uAC1C\uB429\uB2C8\uB2E4." }), ok && !showF && !done && /* @__PURE__ */ React.createElement(PBtn, { onClick: () => setShowP(true) }, "\uC758\uACAC \uC120\uD0DD\uD558\uAE30 \u2192"), done && /* @__PURE__ */ React.createElement(SuccessBox, { msg: "\uC758\uACAC\uC774 \uC815\uC0C1\uC801\uC73C\uB85C \uC81C\uCD9C\uB418\uC5C8\uC2B5\uB2C8\uB2E4. \uAC10\uC0AC\uD569\uB2C8\uB2E4." }), !ok && vt.status === "active" && /* @__PURE__ */ React.createElement(WarnBox, { msg: "\uC758\uACAC\uC218\uB834 \uAE30\uAC04\uC774 \uC885\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4." }), showF && /* @__PURE__ */ React.createElement(VoteForm, { vt, onSubmit: (e) => {
-    onVote(vt.id, e);
-    setShowF(false);
-    setDone(true);
-    notify("\uC758\uACAC\uC774 \uC81C\uCD9C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
-  }, onCancel: () => setShowF(false), notify, isMobile })));
+  const runVerify = async () => {
+    const msg = validatePersonText(auth);
+    if (msg) { setVerifyErr(msg); return; }
+    setVerifying(true);
+    const memberOk = await verifyMember(auth.dong, auth.ho, auth.name);
+    setVerifying(false);
+    if (!memberOk) { setVerifyErr("입주민 정보가 일치하지 않습니다."); return; }
+    const found = (vt.votes || []).find((x) => sameOwner(x, auth));
+    if (!found) { setVerifyErr("제출된 정책자문 의견 정보와 일치하지 않습니다."); return; }
+    setVerifiedVote(found);
+    setEditChoice(found.choice || "");
+    setVerifyErr("");
+  };
+  const saveVote = () => {
+    if (!ok) { notify("완료된 정책자문은 수정할 수 없습니다.", "err"); return; }
+    if (!editChoice) { notify("의견 항목을 선택해 주세요.", "err"); return; }
+    const patch = { choice: editChoice, date: nowDT() };
+    onPatchVote(vt.id, auth, patch);
+    setVerifiedVote(__spreadProps(__spreadValues({}, verifiedVote), patch));
+    notify("정책자문 의견이 수정되었습니다.");
+  };
+  const removeVote = () => {
+    if (!ok) { notify("완료된 정책자문은 삭제할 수 없습니다.", "err"); return; }
+    if (!confirm("제출한 정책자문 의견을 삭제하시겠습니까?")) return;
+    onDeleteVote(vt.id, auth);
+    setVerifiedVote(null);
+    setShowManage(false);
+    notify("정책자문 의견이 삭제되었습니다.");
+  };
+  const voteVerifyForm = React.createElement(React.Fragment, null,
+    React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+      React.createElement("input", { style: S.inp, placeholder: "동 3자리", value: auth.dong, maxLength: 3, onChange: (e) => setAuth((x) => __spreadProps(__spreadValues({}, x), { dong: onlyDigits(e.target.value, 3) })) }),
+      React.createElement("input", { style: S.inp, placeholder: "호수 3~4자리", value: auth.ho, maxLength: 4, onChange: (e) => setAuth((x) => __spreadProps(__spreadValues({}, x), { ho: onlyDigits(e.target.value, 4) })) })
+    ),
+    React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { marginBottom: 8 }), placeholder: "이름", value: auth.name, onChange: (e) => setAuth((x) => __spreadProps(__spreadValues({}, x), { name: onlyNameText(e.target.value) })) }),
+    verifyErr && React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 8, fontWeight: 600 } }, verifyErr),
+    React.createElement(PBtn, { onClick: runVerify }, verifying ? "확인 중..." : "제출 정보 확인")
+  );
+  const voteOptionPicker = React.createElement(Fld, { label: "의견 선택" },
+    React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
+      vt.options.map((o) => React.createElement("label", { key: o, onClick: () => setEditChoice(o), style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1.5px solid ${editChoice === o ? BLUE : "#e5e7eb"}`, background: editChoice === o ? LBLUE : "#fff", cursor: "pointer", fontWeight: editChoice === o ? 700 : 400, color: editChoice === o ? BLUE : "#374151" } },
+        React.createElement("div", { style: { width: 16, height: 16, borderRadius: "50%", border: `2px solid ${editChoice === o ? BLUE : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, editChoice === o && React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: BLUE } })),
+        o
+      ))
+    )
+  );
+  const voteEditForm = React.createElement(React.Fragment, null,
+    !ok && React.createElement(WarnBox, { msg: "정책자문이 완료되어 수정·삭제가 잠겼습니다." }),
+    ok && voteOptionPicker,
+    ok && React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, React.createElement(PBtn, { onClick: saveVote }, "저장"), React.createElement(GBtn, { onClick: removeVote, style: { color: "#dc2626", borderColor: "#fecaca", background: "#fff" } }, "삭제"))
+  );
+  const manageBox = React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 } },
+    React.createElement("div", { style: { fontWeight: 800, fontSize: 14, color: "#111827", marginBottom: 6 } }, "내가 제출한 정책자문 의견 수정·삭제"),
+    React.createElement("div", { style: { fontSize: 12, color: ok ? "#6b7280" : "#dc2626", marginBottom: 12, lineHeight: 1.6 } }, ok ? "의견 제출 시 입력한 동·호수·이름이 일치하면 기간 종료 전까지 수정 또는 삭제할 수 있습니다." : "정책자문이 완료되어 제출 의견은 수정·삭제할 수 없습니다."),
+    !verifiedVote ? voteVerifyForm : voteEditForm
+  );
+  const resultBox = showRes && total > 0 && React.createElement("div", { style: { marginBottom: 24 } },
+    React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, "집계 결과"),
+    vt.options.map((o) => {
+      const cnt = tally[o] || 0, pct = total > 0 ? Math.round(cnt / total * 100) : 0;
+      const isTop = cnt === maxCnt && cnt > 0;
+      return React.createElement("div", { key: o, style: { marginBottom: 10, padding: "11px 14px", background: isTop ? LBLUE : "#f9fafb", borderRadius: 8, border: `1px solid ${isTop ? "#bfdbfe" : "#e5e7eb"}` } },
+        React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 7 } },
+          React.createElement("span", { style: { fontWeight: isTop ? 700 : 400, fontSize: 14, color: isTop ? BLUE : "#374151" } }, isTop ? "1위  " : "", o),
+          React.createElement("span", { style: { fontWeight: 700, fontSize: 14, color: isTop ? BLUE : "#6b7280" } }, cnt, "명 (", pct, "%)")
+        ),
+        React.createElement("div", { style: { height: 5, background: "rgba(0,0,0,.06)", borderRadius: 3, overflow: "hidden" } }, React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: isTop ? BLUE : "#d1d5db", borderRadius: 3 } }))
+      );
+    })
+  );
+  return React.createElement("div", { style: { maxWidth: 680, margin: "0 auto" } },
+    React.createElement(BackBtn, { onClick: onBack }),
+    showP && React.createElement(PrivacyModal, { purpose: "정책자문 참여", onOk: () => { setShowP(false); setShowF(true); }, onCancel: () => setShowP(false) }),
+    React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } },
+      React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, React.createElement(Tag, { color: vt.type === "찬반" ? "#16a34a" : "#7c3aed", bg: vt.type === "찬반" ? "#dcfce7" : "#f5f3ff" }, vt.type), React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, vt.id)),
+      React.createElement("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, vt.title),
+      React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18 } }, "📅 ", fmt(vt.startDate), " ~ ", fmt(vt.endDate), " · ✋ ", total, "명 참여"),
+      React.createElement("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 24, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: `3px solid ${BLUE}` } }, vt.desc),
+      resultBox,
+      vt.showResult === "after" && ok && React.createElement(InfoBox, { msg: "정책자문 결과는 의견수렴 기간 종료 후 공개됩니다." }),
+      ok && !showF && !done && React.createElement(PBtn, { onClick: () => setShowP(true) }, "의견 선택하기 →"),
+      done && React.createElement(SuccessBox, { msg: "의견이 정상적으로 제출되었습니다. 감사합니다." }),
+      !ok && vt.status === "active" && React.createElement(WarnBox, { msg: "의견수렴 기간이 종료되었습니다." }),
+      showF && React.createElement(VoteForm, { vt, onSubmit: (e) => { onVote(vt.id, e); setShowF(false); setDone(true); notify("의견이 제출되었습니다."); }, onCancel: () => setShowF(false), notify, isMobile }),
+      React.createElement("div", { style: { marginTop: 18, borderTop: "1px solid #f3f4f6", paddingTop: 14 } }, !showManage ? React.createElement(GBtn, { onClick: () => setShowManage(true) }, "내가 제출한 의견 수정·삭제") : manageBox)
+    )
+  );
 }
-
-
 function VoteForm({ vt, onSubmit, onCancel, notify, isMobile }) {
   const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "", choice: "" });
-  const [err, setErr] = useState({});
   const [verifying, setVerifying] = useState(false);
   const submit = async () => {
-    const ve = residentErrors(f);
-    setErr(ve);
-    if (Object.keys(ve).length) { notify(residentErrMsg, "err"); return; }
-    if (!f.choice) { notify("의견 항목을 선택해주세요.", "err"); return; }
-    if (vt.votes.find((v) => v.dong === f.dong && v.ho === f.ho)) { notify("이미 의견을 제출한 세대입니다.", "err"); return; }
+    if (!f.dong || !f.ho || !f.name) {
+      notify("\uB3D9\uD638\uC218\uC640 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    if (!f.choice) {
+      notify("\uC758\uACAC \uD56D\uBAA9\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    if (vt.votes.find((v) => v.dong === f.dong && v.ho === f.ho)) {
+      notify("\uC774\uBBF8 \uC758\uACAC\uC744 \uC81C\uCD9C\uD55C \uC138\uB300\uC785\uB2C8\uB2E4.", "err");
+      return;
+    }
     setVerifying(true);
     const ok = await verifyMember(f.dong, f.ho, f.name);
     setVerifying(false);
-    if (!ok) { notify("입주민 정보가 일치하지 않습니다. 동·호수·이름을 확인해주세요.", "err"); return; }
-    onSubmit({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), choice: f.choice, date: appNow() });
+    if (!ok) {
+      notify("\uC785\uC8FC\uBBFC \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB3D9\xB7\uD638\uC218\xB7\uC774\uB984\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    onSubmit({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), choice: f.choice, date: nowDT() });
   };
-  const optionList = CE("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 } },
-    vt.options.map((o) => CE("label", {
+  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uC758\uACAC \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC758\uACAC \uC120\uD0DD" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 } }, vt.options.map((o) => /* @__PURE__ */ React.createElement(
+    "label",
+    {
       key: o,
       onClick: () => setF((p) => __spreadProps(__spreadValues({}, p), { choice: o })),
-      style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1.5px solid ${f.choice === o ? BLUE : "#e5e7eb"}`, background: f.choice === o ? LBLUE : "#fff", cursor: "pointer", fontWeight: f.choice === o ? 600 : 400, color: f.choice === o ? BLUE : "#374151", minHeight: 44 }
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "12px 14px",
+        borderRadius: 8,
+        border: `1.5px solid ${f.choice === o ? BLUE : "#e5e7eb"}`,
+        background: f.choice === o ? LBLUE : "#fff",
+        cursor: "pointer",
+        fontWeight: f.choice === o ? 600 : 400,
+        color: f.choice === o ? BLUE : "#374151",
+        minHeight: 44
+      }
     },
-      CE("div", { style: { width: 16, height: 16, borderRadius: "50%", border: `2px solid ${f.choice === o ? BLUE : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, f.choice === o && CE("div", { style: { width: 7, height: 7, borderRadius: "50%", background: BLUE } })),
-      o
-    ))
-  );
-  return CE("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } },
-    CE("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "동호수 인증 후 의견 제출"),
-    CE(ResidentInputRow, { f, setF, err }),
-    CE(Fld, { label: "의견 선택" }, optionList),
-    CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 16 } }, CE(PBtn, { onClick: submit }, verifying ? "인증중..." : "제출하기"), CE(GBtn, { onClick: onCancel }, "취소"))
-  );
+    /* @__PURE__ */ React.createElement("div", { style: { width: 16, height: 16, borderRadius: "50%", border: `2px solid ${f.choice === o ? BLUE : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, f.choice === o && /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: BLUE } })),
+    o
+  )))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 16 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
 }
-
 function AgendaList({ ag, cfg, nav, isMobile }) {
   const [cat, setCat] = useState("\uC804\uCCB4");
   const [st, setSt] = useState("\uC804\uCCB4");
@@ -795,68 +856,125 @@ function AgendaRow({ a, cfg, onClick, isMobile }) {
     !isDraft && /* @__PURE__ */ React.createElement("div", { style: { textAlign: "right", flexShrink: 0, minWidth: isMobile ? 60 : 72 } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: p >= 100 ? "#16a34a" : BLUE, lineHeight: 1 } }, total), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 1 } }, "/", max, "\uBA85"), /* @__PURE__ */ React.createElement("div", { style: { marginTop: 6, height: 4, background: "#f3f4f6", borderRadius: 2, overflow: "hidden", width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${p}%`, background: p >= 100 ? "#16a34a" : BLUE, borderRadius: 2 } })), !isMobile && a.endDate && /* @__PURE__ */ React.createElement("div", { style: { fontSize: 10, color: "#9ca3af", marginTop: 3 } }, "~", fmt(a.endDate)))
   );
 }
-
-function AgendaDetail({ ag, cfg, onBack, onSign, onPatch, onDelete, notify, isMobile }) {
+function AgendaDetail({ ag, cfg, onBack, onSign, onPatchAg, onDeleteAg, notify, isMobile }) {
   const [showP, setShowP] = useState(false);
   const [showF, setShowF] = useState(false);
-  const [authOpen, setAuthOpen] = useState(false);
-  const [ownerOk, setOwnerOk] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [err, setErr] = useState({});
-  const [form, setForm] = useState({ title: ag.title || "", desc: ag.desc || "", cat: ag.cat || "", dong: ag.submitter.dong || "", ho: ag.submitter.ho || "", name: ag.submitter.name || "", phone: ag.submitter.phone || "" });
-  useEffect(() => { setForm({ title: ag.title || "", desc: ag.desc || "", cat: ag.cat || "", dong: ag.submitter.dong || "", ho: ag.submitter.ho || "", name: ag.submitter.name || "", phone: ag.submitter.phone || "" }); setOwnerOk(false); setEditing(false); setAuthOpen(false); }, [ag.id]);
+  const [showManage, setShowManage] = useState(false);
+  const [verified, setVerified] = useState(false);
+  const [auth, setAuth] = useState({ dong: "", ho: "", name: "" });
+  const [verifyErr, setVerifyErr] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [edit, setEdit] = useState({ title: ag.title || "", desc: ag.desc || "", cat: ag.cat || "", phone: ag.submitter && ag.submitter.phone || "" });
+  useEffect(() => {
+    setEdit({ title: ag.title || "", desc: ag.desc || "", cat: ag.cat || "", phone: ag.submitter && ag.submitter.phone || "" });
+  }, [ag.id, ag.title, ag.desc, ag.cat]);
   const si = agSt(ag);
   const canSign = isActiveAg(ag);
   const isDraft = ag.status === "draft";
+  const userCanModify = isDraft;
   const total = ag.sigs.length, max = cfg.minSigs || 1;
   const p = Math.min(100, Math.round(total / max * 100));
+  const runVerify = async () => {
+    const msg = validatePersonText(auth);
+    if (msg) { setVerifyErr(msg); return; }
+    setVerifying(true);
+    const memberOk = await verifyMember(auth.dong, auth.ho, auth.name);
+    setVerifying(false);
+    if (!memberOk) { setVerifyErr("입주민 정보가 일치하지 않습니다."); return; }
+    if (!sameOwner(auth, ag.submitter)) { setVerifyErr("안건 신청자 정보가 일치하지 않습니다."); return; }
+    setVerified(true);
+    setVerifyErr("");
+  };
   const saveEdit = () => {
-    const e = {};
-    if (!form.title.trim()) e.title = "입력하세요.";
-    if (!form.desc.trim()) e.desc = "입력하세요.";
-    if (!form.cat) e.cat = "선택하세요.";
-    validateResidentInto(e, form, false);
-    setErr(e);
-    if (Object.keys(e).length) { notify(Object.values(e).includes("3자리 숫자") || Object.values(e).includes("3~4자리 숫자") || Object.values(e).includes("텍스트만") ? residentErrMsg : "필수 항목을 확인해주세요.", "err"); return; }
-    onPatch(ag.id, { title: form.title.trim(), desc: form.desc.trim(), cat: form.cat, submitter: { dong: form.dong, ho: form.ho, name: form.name.trim(), phone: maskPh(form.phone || "") } });
-    setEditing(false);
+    if (!userCanModify) { notify("의견수렴 이후 안건은 수정할 수 없습니다.", "err"); return; }
+    if (!edit.title.trim() || !edit.desc.trim() || !edit.cat) { notify("제목, 분야, 상세 내용을 모두 입력해 주세요.", "err"); return; }
+    onPatchAg(ag.id, { title: edit.title.trim(), desc: edit.desc.trim(), cat: edit.cat, phone: maskPh(edit.phone || "") }, auth);
+    setEditMode(false);
     notify("안건이 수정되었습니다.");
   };
-  const deleteOwn = () => {
-    if (!window.confirm("이 안건을 삭제하시겠습니까?")) return;
-    onDelete(ag.id);
+  const remove = () => {
+    if (!userCanModify) { notify("의견수렴 이후 안건은 삭제할 수 없습니다.", "err"); return; }
+    if (!confirm("이 안건을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.")) return;
+    onDeleteAg(ag.id, auth);
     notify("안건이 삭제되었습니다.");
     onBack();
   };
-  if (editing) return CE("div", { style: { maxWidth: 680, margin: "0 auto" } }, CE(BackBtn, { onClick: () => setEditing(false) }), CE("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, CE("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 14 } }, "안건 수정"), CE(Fld, { label: "제목", err: err.title }, CE("input", { style: S.inp, value: form.title, onChange: (e) => setForm((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), CE(Fld, { label: "분야", err: err.cat }, CE("select", { style: S.inp, value: form.cat, onChange: (e) => setForm((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, CE("option", { value: "" }, "선택하세요"), CATS.map((c) => CE("option", { key: c }, c)))), CE(Fld, { label: "상세 내용", err: err.desc }, CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 120, resize: "vertical" }), value: form.desc, onChange: (e) => setForm((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), CE(SLabel, null, "신청자 정보"), CE(ResidentInputRow, { f: form, setF: setForm, err }), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 10 } }, CE(PBtn, { onClick: saveEdit }, "수정 저장"), CE(GBtn, { onClick: () => setEditing(false) }, "취소"))));
-  return CE("div", { style: { maxWidth: 680, margin: "0 auto" } }, CE(BackBtn, { onClick: onBack }), showP && CE(PrivacyModal, { purpose: "안건 찬성", onOk: () => { setShowP(false); setShowF(true); }, onCancel: () => setShowP(false) }), CE("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, CE("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, CE(Tag, { color: catTag(ag.cat).color, bg: catTag(ag.cat).background }, ag.cat), CE(Tag, { color: si.c, bg: si.bg }, si.t), CE("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, ag.id)), CE("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, ag.title), CE("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18, display: "flex", gap: 12, flexWrap: "wrap" } }, CE("span", null, "👤 ", maskDong(ag.submitter.dong), "동 ", maskHo(ag.submitter.ho), "호 ", maskName(ag.submitter.name)), ag.endDate ? CE("span", null, "📅 ", fmt(ag.approvedAt), " ~ ", CE("b", { style: { color: "#374151" } }, fmt(ag.endDate))) : CE("span", { style: { color: "#d97706" } }, "📅 승인 대기중")), isDraft ? CE(React.Fragment, null, CE(WarnBox, { msg: "🔒 관리자 승인 대기중입니다. 승인 전에는 최초 작성자 본인 확인 후 수정/삭제할 수 있고, 승인 이후에는 관리자만 수정/삭제할 수 있습니다." }), ownerOk && CE("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 14, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, ag.desc), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 12 } }, !ownerOk ? CE(PBtn, { onClick: () => setAuthOpen(true) }, "작성자 수정/삭제") : CE(React.Fragment, null, CE(PBtn, { onClick: () => setEditing(true) }, "수정"), CE(SmallBtn, { danger: true, onClick: deleteOwn, style: { flex: 1, minHeight: 44 } }, "삭제"))), authOpen && !ownerOk && CE(OwnerAuthBox, { person: ag.submitter, notify, title: "안건 작성자 확인", onVerified: () => { setOwnerOk(true); setAuthOpen(false); notify("작성자 확인이 완료되었습니다."); }, onCancel: () => setAuthOpen(false) })) : CE(React.Fragment, null, CE("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 22, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, ag.desc), CE(WarnBox, { msg: "승인 이후 안건 수정·삭제는 관리자만 가능합니다." }), cfg.minSigs > 0 && CE("div", { style: { background: "#f9fafb", borderRadius: 8, padding: "14px 18px", marginBottom: 22 } }, CE("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 } }, CE("span", { style: { fontWeight: 600, color: "#374151" } }, "찬성 현황"), CE("span", { style: { fontWeight: 700, color: p >= 100 ? "#16a34a" : BLUE } }, total, "명 / ", max, "명 (", p, "%)")), CE("div", { style: { height: 7, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" } }, CE("div", { style: { height: "100%", width: `${p}%`, background: p >= 100 ? "#16a34a" : BLUE, borderRadius: 4 } }))), canSign && !showF && CE(PBtn, { onClick: () => setShowP(true) }, "✋ 이 안건에 찬성합니다"), !canSign && ag.status === "active" && CE(WarnBox, { msg: "의견수렴 기간이 종료되었습니다." }), showF && CE(AgSignForm, { existing: ag.sigs, onSign: (sig) => { onSign(ag.id, sig); setShowF(false); notify("찬성 의견이 제출되었습니다."); }, onCancel: () => setShowF(false), notify, isMobile }))));
+  const manageBox = React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 16 } },
+    React.createElement("div", { style: { fontWeight: 800, fontSize: 14, color: "#111827", marginBottom: 6 } }, "내가 접수한 안건 수정·삭제"),
+    React.createElement("div", { style: { fontSize: 12, color: userCanModify ? "#6b7280" : "#dc2626", marginBottom: 12, lineHeight: 1.6 } }, userCanModify ? "안건 신청 시 입력한 동·호수·이름이 일치하면 승인 전까지 수정 또는 삭제할 수 있습니다." : "의견수렴이 시작된 안건은 작성자도 수정·삭제할 수 없습니다."),
+    !verified ? React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { display: "flex", gap: 8, marginBottom: 8 } },
+        React.createElement("input", { style: S.inp, placeholder: "동 3자리", value: auth.dong, maxLength: 3, onChange: (e) => setAuth((x) => __spreadProps(__spreadValues({}, x), { dong: onlyDigits(e.target.value, 3) })) }),
+        React.createElement("input", { style: S.inp, placeholder: "호수 3~4자리", value: auth.ho, maxLength: 4, onChange: (e) => setAuth((x) => __spreadProps(__spreadValues({}, x), { ho: onlyDigits(e.target.value, 4) })) })
+      ),
+      React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { marginBottom: 8 }), placeholder: "이름", value: auth.name, onChange: (e) => setAuth((x) => __spreadProps(__spreadValues({}, x), { name: onlyNameText(e.target.value) })) }),
+      verifyErr && React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 8, fontWeight: 600 } }, verifyErr),
+      React.createElement(PBtn, { onClick: runVerify }, verifying ? "확인 중..." : "작성자 정보 확인")
+    ) : React.createElement(React.Fragment, null,
+      !userCanModify && React.createElement(WarnBox, { msg: "의견수렴이 시작되어 수정·삭제가 잠겼습니다." }),
+      userCanModify && !editMode && React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } },
+        React.createElement(PBtn, { onClick: () => setEditMode(true) }, "수정"),
+        React.createElement(GBtn, { onClick: remove, style: { color: "#dc2626", borderColor: "#fecaca", background: "#fff" } }, "삭제")
+      ),
+      userCanModify && editMode && React.createElement("div", null,
+        React.createElement(Fld, { label: "제목" }, React.createElement("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { title: e.target.value })) })),
+        React.createElement(Fld, { label: "분야" }, React.createElement("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { cat: e.target.value })) }, CATS.map((c) => React.createElement("option", { key: c }, c)))),
+        React.createElement(Fld, { label: "상세 내용" }, React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 110, resize: "vertical" }), value: edit.desc, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { desc: e.target.value })) })),
+        React.createElement(Fld, { label: "전화번호" }, React.createElement("input", { style: S.inp, value: edit.phone, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { phone: e.target.value })) })),
+        React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, React.createElement(PBtn, { onClick: saveEdit }, "저장"), React.createElement(GBtn, { onClick: () => setEditMode(false) }, "취소"))
+      )
+    )
+  );
+  return React.createElement("div", { style: { maxWidth: 680, margin: "0 auto" } }, React.createElement(BackBtn, { onClick: onBack }), showP && React.createElement(PrivacyModal, { purpose: "안건 찬성", onOk: () => { setShowP(false); setShowF(true); }, onCancel: () => setShowP(false) }), React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, React.createElement(Tag, { color: catTag(ag.cat).color, bg: catTag(ag.cat).background }, ag.cat), React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, ag.id)), React.createElement("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, ag.title), React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18, display: "flex", gap: 12, flexWrap: "wrap" } }, React.createElement("span", null, "👤 ", maskDong(ag.submitter.dong), "동 ", maskHo(ag.submitter.ho), "호 ", maskName(ag.submitter.name)), ag.endDate ? React.createElement("span", null, "📅 ", fmt(ag.approvedAt), " ~ ", React.createElement("b", { style: { color: "#374151" } }, fmt(ag.endDate))) : React.createElement("span", { style: { color: "#d97706" } }, "📅 승인 대기중")), isDraft ? React.createElement(WarnBox, { msg: "🔒 관리자 승인 대기중입니다. 승인 완료 후 전체 내용 및 찬성 제출이 가능합니다." }) : React.createElement(React.Fragment, null, React.createElement("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 22, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, ag.desc), cfg.minSigs > 0 && React.createElement("div", { style: { background: "#f9fafb", borderRadius: 8, padding: "14px 18px", marginBottom: 22 } }, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 } }, React.createElement("span", { style: { fontWeight: 600, color: "#374151" } }, "찬성 현황"), React.createElement("span", { style: { fontWeight: 700, color: p >= 100 ? "#16a34a" : BLUE } }, total, "명 / ", max, "명 (", p, "%)")), React.createElement("div", { style: { height: 7, background: "#e5e7eb", borderRadius: 4, overflow: "hidden" } }, React.createElement("div", { style: { height: "100%", width: `${p}%`, background: p >= 100 ? "#16a34a" : BLUE, borderRadius: 4 } }))), canSign && !showF && React.createElement(PBtn, { onClick: () => setShowP(true) }, "✋ 이 안건에 찬성합니다"), !canSign && ag.status === "active" && React.createElement(WarnBox, { msg: "의견수렴 기간이 종료되었습니다." }), showF && React.createElement(AgSignForm, { existing: ag.sigs, onSign: (sig) => { onSign(ag.id, sig); setShowF(false); notify("찬성 의견이 제출되었습니다."); }, onCancel: () => setShowF(false), notify, isMobile })), React.createElement("div", { style: { marginTop: 18, borderTop: "1px solid #f3f4f6", paddingTop: 14 } }, !showManage ? React.createElement(GBtn, { onClick: () => setShowManage(true) }, "내가 접수한 안건 수정·삭제") : manageBox)));
 }
 function AgSignForm({ existing, onSign, onCancel, notify, isMobile }) {
   const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "" });
-  const [err, setErr] = useState({});
   const [verifying, setVerifying] = useState(false);
   const submit = async () => {
-    const ve = residentErrors(f); setErr(ve);
-    if (Object.keys(ve).length) { notify(residentErrMsg, "err"); return; }
-    if (existing.find((s) => s.dong === f.dong && s.ho === f.ho)) { notify("이미 의견을 제출한 세대입니다.", "err"); return; }
+    if (!f.dong || !f.ho || !f.name) {
+      notify("\uB3D9\uD638\uC218\uC640 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    if (existing.find((s) => s.dong === f.dong && s.ho === f.ho)) {
+      notify("\uC774\uBBF8 \uC758\uACAC\uC744 \uC81C\uCD9C\uD55C \uC138\uB300\uC785\uB2C8\uB2E4.", "err");
+      return;
+    }
     setVerifying(true);
     const ok = await verifyMember(f.dong, f.ho, f.name);
     setVerifying(false);
-    if (!ok) { notify("입주민 정보가 일치하지 않습니다. 동·호수·이름을 확인해주세요.", "err"); return; }
-    onSign({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), date: appNow() });
+    if (!ok) {
+      notify("\uC785\uC8FC\uBBFC \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB3D9\xB7\uD638\uC218\xB7\uC774\uB984\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.", "err");
+      return;
+    }
+    onSign({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), date: nowDT() });
   };
-  return CE("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, CE("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "동호수 인증 후 찬성 제출"), CE(ResidentInputRow, { f, setF, err }), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, CE(PBtn, { onClick: submit }, verifying ? "인증중..." : "제출하기"), CE(GBtn, { onClick: onCancel }, "취소")));
+  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uCC2C\uC131 \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
 }
 function AgendaSubmit({ ag, onAdd, onBack, notify, isMobile }) {
   const [step, setStep] = useState("privacy");
   const [f, setF] = useState({ title: "", desc: "", cat: "", dong: "", ho: "", name: "", phone: "" });
   const [err, setErr] = useState({});
-  if (step === "privacy") return CE("div", { style: { maxWidth: 640, margin: "0 auto" } }, CE(BackBtn, { onClick: onBack }), CE(PrivacyModal, { purpose: "안건신청", onOk: () => setStep("form"), onCancel: onBack, inline: true }));
-  const validate = () => { const e = {}; if (!f.title.trim()) e.title = "입력하세요."; if (!f.desc.trim()) e.desc = "입력하세요."; if (!f.cat) e.cat = "선택하세요."; validateResidentInto(e, f, false); setErr(e); return Object.keys(e).length === 0; };
-  const submit = () => { if (!validate()) { notify(residentErrMsg, "err"); return; } const id = `AGD-${String(ag.length + 1).padStart(3, "0")}`; onAdd({ id, title: f.title.trim(), desc: f.desc.trim(), cat: f.cat, submitter: { dong: f.dong, ho: f.ho, name: f.name.trim(), phone: maskPh(f.phone) }, status: "draft", approvedAt: "", endDate: "", sigs: [], createdAt: appNow() }); onBack(); };
-  return CE("div", { style: { maxWidth: 640, margin: "0 auto" } }, CE(BackBtn, { onClick: onBack }), CE("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, CE("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "안건신청"), CE("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "관리자 승인 전에는 입력한 작성자 정보 확인 후 수정/삭제할 수 있습니다. 승인 이후에는 관리자만 수정/삭제할 수 있습니다."), CE(SLabel, null, "안건 내용"), CE(Fld, { label: "제목", err: err.title }, CE("input", { style: S.inp, placeholder: "안건 제목을 간결하게 입력하세요", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), CE(Fld, { label: "분야", err: err.cat }, CE("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, CE("option", { value: "" }, "선택하세요"), CATS.map((c) => CE("option", { key: c }, c)))), CE(Fld, { label: "상세 내용", err: err.desc }, CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 100, resize: "vertical" }), placeholder: "안건 배경, 현황, 요구사항을 구체적으로 작성해주세요", value: f.desc, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), CE(SLabel, null, "신청자 정보"), CE(ResidentInputRow, { f, setF, err }), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, CE(PBtn, { onClick: submit }, "안건 접수하기"), CE(GBtn, { onClick: onBack }, "취소"))));
+  if (step === "privacy") return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uC548\uAC74\uC2E0\uCCAD", onOk: () => setStep("form"), onCancel: onBack, inline: true }));
+  const validate = () => {
+    const e = {};
+    if (!f.title.trim()) e.title = "\uC785\uB825\uD558\uC138\uC694.";
+    if (!f.desc.trim()) e.desc = "\uC785\uB825\uD558\uC138\uC694.";
+    if (!f.cat) e.cat = "\uC120\uD0DD\uD558\uC138\uC694.";
+    if (!f.dong) e.dong = "\uD544\uC218";
+    if (!f.ho) e.ho = "\uD544\uC218";
+    if (!f.name) e.name = "\uD544\uC218";
+    setErr(e);
+    return Object.keys(e).length === 0;
+  };
+  const submit = () => {
+    if (!validate()) return;
+    const id = `AGD-${String(ag.length + 1).padStart(3, "0")}`;
+    onAdd({ id, title: f.title, desc: f.desc, cat: f.cat, submitter: { dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone) }, status: "draft", approvedAt: "", endDate: "", sigs: [], createdAt: nowDT() });
+    onBack();
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uC548\uAC74\uC2E0\uCCAD"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uAD00\uB9AC\uC790 \uC2B9\uC778 \uD6C4 \uACF5\uAC1C\uB429\uB2C8\uB2E4. \uAC1C\uC778\uC815\uBCF4\uB294 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uC989\uC2DC \uD3D0\uAE30\uB429\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uC548\uAC74 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC548\uAC74 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.desc }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 100, resize: "vertical" }), placeholder: "\uC548\uAC74 \uBC30\uACBD, \uD604\uD669, \uC694\uAD6C\uC0AC\uD56D\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.desc, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC2E0\uCCAD\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790 \uC5F4\uB78C \xB7 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uC548\uAC74 \uC811\uC218\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
 }
-
 function PrivacyModal({ purpose, onOk, onCancel, inline }) {
   const [agreed, setAgreed] = useState(false);
   const box = /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h3", { style: { color: "#111827", marginBottom: 18, fontSize: 17, fontWeight: 800 } }, "\uAC1C\uC778\uC815\uBCF4 \uC218\uC9D1\xB7\uC774\uC6A9 \uB3D9\uC758"), /* @__PURE__ */ React.createElement("div", { style: { overflowX: "auto", marginBottom: 16 } }, /* @__PURE__ */ React.createElement("table", { style: { width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 360 } }, /* @__PURE__ */ React.createElement("thead", null, /* @__PURE__ */ React.createElement("tr", { style: { background: "#f9fafb", borderBottom: "1px solid #e5e7eb" } }, ["\uC218\uC9D1 \uD56D\uBAA9", "\uC218\uC9D1 \uBAA9\uC801", "\uBCF4\uC720 \uBC0F \uD3D0\uAE30"].map((h) => /* @__PURE__ */ React.createElement("th", { key: h, style: { padding: "9px 12px", textAlign: "left", color: "#374151", fontWeight: 700, whiteSpace: "nowrap" } }, h)))), /* @__PURE__ */ React.createElement("tbody", null, /* @__PURE__ */ React.createElement("tr", null, /* @__PURE__ */ React.createElement("td", { style: tdS }, "\uB3D9\xB7\uD638\uC218, \uC774\uB984, \uC804\uD654\uBC88\uD638"), /* @__PURE__ */ React.createElement("td", { style: tdS }, purpose, " \uBCF8\uC778 \uD655\uC778 \uBC0F \uC911\uBCF5 \uBC29\uC9C0"), /* @__PURE__ */ React.createElement("td", { style: tdS }, "\uBAA9\uC801 \uB2EC\uC131 \uD6C4 ", /* @__PURE__ */ React.createElement("b", null, "\uC989\uC2DC \uD3D0\uAE30")))))), /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "11px 14px", fontSize: 13, color: "#92400e", marginBottom: 18, lineHeight: 1.7 } }, "\u203B \uC704 \uC815\uBCF4\uB294 \uBAA9\uC801 \uC678 \uC6A9\uB3C4\uB85C \uC0AC\uC6A9\uB418\uC9C0 \uC54A\uC73C\uBA70, \uBAA9\uC801 \uB2EC\uC131 \uC2DC \uC9C0\uCCB4\uC5C6\uC774 \uD30C\uAE30\uB429\uB2C8\uB2E4.", /* @__PURE__ */ React.createElement("br", null), "\u203B \uB3D9\uC758\uB97C \uAC70\uBD80\uD560 \uAD8C\uB9AC\uAC00 \uC788\uC73C\uB098 \uAC70\uBD80 \uC2DC ", purpose, "\uC774(\uAC00) \uBD88\uAC00\uD569\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement("label", { style: { display: "flex", alignItems: "center", gap: 10, cursor: "pointer", marginBottom: 18, padding: "12px 14px", background: "#f9fafb", borderRadius: 8, border: `1.5px solid ${agreed ? BLUE : "#e5e7eb"}`, minHeight: 48 } }, /* @__PURE__ */ React.createElement("input", { type: "checkbox", checked: agreed, onChange: (e) => setAgreed(e.target.checked), style: { width: 18, height: 18, accentColor: BLUE, flexShrink: 0 } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 13, fontWeight: 600, color: agreed ? BLUE : "#374151" } }, "\uC704 \uAC1C\uC778\uC815\uBCF4 \uC218\uC9D1\xB7\uC774\uC6A9\uC5D0 \uB3D9\uC758\uD569\uB2C8\uB2E4 (\uD544\uC218)")), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: () => agreed && onOk(), style: { opacity: agreed ? 1 : 0.4 } }, "\uB3D9\uC758\uD558\uACE0 \uACC4\uC18D"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
@@ -897,51 +1015,91 @@ function BoardList({ board, nav, isMobile }) {
     /* @__PURE__ */ React.createElement("span", { style: { textAlign: "center", fontSize: 11, color: "#9ca3af" } }, fmt(b.createdAt))
   ))));
 }
-
-function BoardDetail({ post, onBack, onPatch, onDelete, notify, isMobile }) {
+function BoardDetail({ post, onBack, onPatchBoard, onDeleteBoard, notify, isMobile }) {
   const [verified, setVerified] = useState(false);
-  const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "" });
-  const [err, setErr] = useState({});
-  const [msg, setMsg] = useState("");
+  const [f, setF] = useState({ dong: "", ho: "", name: "" });
+  const [err, setErr] = useState("");
   const [verifying, setVerifying] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [edit, setEdit] = useState(post ? { title: post.title || "", content: post.content || "", cat: post.cat || "", dong: post.author.dong || "", ho: post.author.ho || "", name: post.author.name || "", phone: post.author.phone || "" } : {});
-  useEffect(() => { if (post) { setEdit({ title: post.title || "", content: post.content || "", cat: post.cat || "", dong: post.author.dong || "", ho: post.author.ho || "", name: post.author.name || "", phone: post.author.phone || "" }); setEditing(false); setVerified(false); } }, [post && post.id]);
-  if (!post) return CE("div", null, CE(BackBtn, { onClick: onBack }), CE(EmptyMsg, { msg: "게시물을 찾을 수 없습니다." }));
+  const [editMode, setEditMode] = useState(false);
+  const [edit, setEdit] = useState({ title: post && post.title || "", content: post && post.content || "", cat: post && post.cat || "", phone: post && post.author && post.author.phone || "" });
+  useEffect(() => {
+    if (post) setEdit({ title: post.title || "", content: post.content || "", cat: post.cat || "", phone: post.author && post.author.phone || "" });
+  }, [post && post.id, post && post.title, post && post.content, post && post.cat]);
+  if (!post) return React.createElement("div", null, React.createElement(BackBtn, { onClick: onBack }), React.createElement(EmptyMsg, { msg: "게시물을 찾을 수 없습니다." }));
+  const answered = post.status === "answered" || !!post.answer;
   const verify = async () => {
-    const ve = residentErrors(f); setErr(ve);
-    if (Object.keys(ve).length) { setMsg(residentErrMsg); return; }
+    const msg = validatePersonText(f);
+    if (msg) { setErr(msg); return; }
     setVerifying(true);
     const memberOk = await verifyMember(f.dong, f.ho, f.name);
     setVerifying(false);
-    if (!memberOk) { setMsg("입주민 정보가 일치하지 않습니다."); return; }
-    if (f.dong === post.author.dong && f.ho === post.author.ho && f.name === post.author.name) { setVerified(true); setMsg(""); }
-    else setMsg("작성자 정보가 일치하지 않습니다.");
+    if (!memberOk) { setErr("입주민 정보가 일치하지 않습니다."); return; }
+    if (sameOwner(f, post.author)) { setVerified(true); setErr(""); } else { setErr("작성자 정보가 일치하지 않습니다."); }
   };
   const saveEdit = () => {
-    const e = {}; if (!edit.title.trim()) e.title = "제목을 입력하세요."; if (!edit.content.trim()) e.content = "내용을 입력하세요."; if (!edit.cat) e.cat = "분야를 선택하세요."; validateResidentInto(e, edit, false); setErr(e);
-    if (Object.keys(e).length) { notify(Object.values(e).includes("3자리 숫자") || Object.values(e).includes("3~4자리 숫자") || Object.values(e).includes("텍스트만") ? residentErrMsg : "필수 항목을 확인해주세요.", "err"); return; }
-    onPatch(post.id, { title: edit.title.trim(), content: edit.content.trim(), cat: edit.cat, author: { dong: edit.dong, ho: edit.ho, name: edit.name.trim(), phone: maskPh(edit.phone || "") } });
-    setEditing(false); notify("건의사항이 수정되었습니다.");
+    if (answered) { notify("관리자 답변이 완료된 건의사항은 수정할 수 없습니다.", "err"); return; }
+    if (!edit.title.trim() || !edit.content.trim() || !edit.cat) { notify("제목, 분야, 내용을 모두 입력해 주세요.", "err"); return; }
+    onPatchBoard(post.id, { title: edit.title.trim(), content: edit.content.trim(), cat: edit.cat, phone: maskPh(edit.phone || "") }, f);
+    setEditMode(false);
+    notify("건의사항이 수정되었습니다.");
   };
-  const deleteOwn = () => { if (!window.confirm("이 건의사항을 삭제하시겠습니까?")) return; onDelete(post.id); notify("건의사항이 삭제되었습니다."); onBack(); };
-  const detailBody = editing ? CE("div", null, CE(Fld, { label: "제목", err: err.title }, CE("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), CE(Fld, { label: "분야", err: err.cat }, CE("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, CE("option", { value: "" }, "선택하세요"), BOARD_CATS.map((c) => CE("option", { key: c }, c)))), CE(Fld, { label: "상세 내용", err: err.content }, CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), value: edit.content, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })), CE(SLabel, null, "작성자 정보"), CE(ResidentInputRow, { f: edit, setF: setEdit, err }), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, CE(PBtn, { onClick: saveEdit }, "수정 저장"), CE(GBtn, { onClick: () => setEditing(false) }, "취소"))) : CE(React.Fragment, null, CE("p", { style: { fontSize: 15, color: "#374151", lineHeight: 1.8, padding: "16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #2563eb", marginBottom: 14 } }, post.content), post.answer && CE("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px", marginBottom: 14 } }, CE("div", { style: { fontWeight: 700, fontSize: 13, color: "#15803d", marginBottom: 8 } }, "💬 관리자 답변"), CE("p", { style: { fontSize: 14, color: "#166534", lineHeight: 1.7 } }, post.answer), post.answeredAt && CE("div", { style: { fontSize: 11, color: "#9ca3af", marginTop: 6 } }, fmt(post.answeredAt))), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, CE(PBtn, { onClick: () => setEditing(true) }, "수정"), CE(SmallBtn, { danger: true, onClick: deleteOwn, style: { flex: 1, minHeight: 44 } }, "삭제")));
-  return CE("div", { style: { maxWidth: 700, margin: "0 auto" } }, CE(BackBtn, { onClick: onBack }), CE("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, CE("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 14 } }, CE(Tag, { color: "#374151", bg: "#f3f4f6" }, post.cat), post.status === "answered" && CE(Tag, { color: "#16a34a", bg: "#dcfce7" }, "답변완료"), CE("span", { style: { fontSize: 11, color: "#9ca3af", marginLeft: "auto" } }, post.id)), CE("h2", { style: { fontSize: isMobile ? 18 : 20, fontWeight: 800, color: "#111827", marginBottom: 10 } }, post.title), CE("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20, display: "flex", gap: 16, flexWrap: "wrap" } }, CE("span", null, "📍 ", maskDong(post.author.dong), "동 ", maskHo(post.author.ho), "호"), CE("span", null, "📅 ", fmt(post.createdAt))), !verified ? CE("div", { style: { background: "#f9fafb", borderRadius: 10, padding: "24px", border: "1px solid #e5e7eb", textAlign: "center" } }, CE("div", { style: { fontSize: 32, marginBottom: 12 } }, "🔒"), CE("div", { style: { fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 } }, "비공개 게시물"), CE("div", { style: { fontSize: 13, color: "#6b7280", marginBottom: 20 } }, "작성자 본인 확인 후 열람·수정·삭제할 수 있습니다."), CE("div", { style: { maxWidth: 360, margin: "0 auto" } }, CE(ResidentInputRow, { f, setF, err }), msg && CE("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 8, fontWeight: 500 } }, msg), CE(PBtn, { onClick: verify }, verifying ? "확인 중..." : "본인 확인"))) : detailBody));
+  const remove = () => {
+    if (answered) { notify("관리자가 답변한 건의사항은 삭제할 수 없습니다.", "err"); return; }
+    if (!confirm("이 건의사항을 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.")) return;
+    onDeleteBoard(post.id, f);
+    notify("건의사항이 삭제되었습니다.");
+    onBack();
+  };
+  const actionBox = verified && React.createElement("div", { style: { marginTop: 18, borderTop: "1px solid #f3f4f6", paddingTop: 14 } },
+    answered ? React.createElement(WarnBox, { msg: "관리자가 답변한 건의사항은 작성자도 수정·삭제할 수 없습니다." }) : !editMode ? React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, React.createElement(PBtn, { onClick: () => setEditMode(true) }, "수정"), React.createElement(GBtn, { onClick: remove, style: { color: "#dc2626", borderColor: "#fecaca", background: "#fff" } }, "삭제")) : React.createElement("div", null,
+      React.createElement(Fld, { label: "제목" }, React.createElement("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { title: e.target.value })) })),
+      React.createElement(Fld, { label: "분야" }, React.createElement("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { cat: e.target.value })) }, BOARD_CATS.map((c) => React.createElement("option", { key: c }, c)))),
+      React.createElement(Fld, { label: "상세 내용" }, React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), value: edit.content, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { content: e.target.value })) })),
+      React.createElement(Fld, { label: "전화번호" }, React.createElement("input", { style: S.inp, value: edit.phone, onChange: (e) => setEdit((x) => __spreadProps(__spreadValues({}, x), { phone: e.target.value })) })),
+      React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, React.createElement(PBtn, { onClick: saveEdit }, "저장"), React.createElement(GBtn, { onClick: () => setEditMode(false) }, "취소"))
+    )
+  );
+  return React.createElement("div", { style: { maxWidth: 700, margin: "0 auto" } }, React.createElement(BackBtn, { onClick: onBack }), React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 14 } }, React.createElement(Tag, { color: "#374151", bg: "#f3f4f6" }, post.cat), answered && React.createElement(Tag, { color: "#16a34a", bg: "#dcfce7" }, "답변완료"), React.createElement("span", { style: { fontSize: 11, color: "#9ca3af", marginLeft: "auto" } }, post.id)), React.createElement("h2", { style: { fontSize: isMobile ? 18 : 20, fontWeight: 800, color: "#111827", marginBottom: 10 } }, post.title), React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20, display: "flex", gap: 16 } }, React.createElement("span", null, "📍 ", maskDong(post.author.dong), "동 ", maskHo(post.author.ho), "호"), React.createElement("span", null, "📅 ", fmt(post.createdAt))), !verified ? React.createElement("div", { style: { background: "#f9fafb", borderRadius: 10, padding: "24px", border: "1px solid #e5e7eb", textAlign: "center" } }, React.createElement("div", { style: { fontSize: 32, marginBottom: 12 } }, "🔒"), React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 4 } }, "비공개 게시물"), React.createElement("div", { style: { fontSize: 13, color: "#6b7280", marginBottom: 20, lineHeight: 1.6 } }, "작성자 본인 확인 후 내용을 열람하고, 답변 전에는 수정 또는 삭제할 수 있습니다."), React.createElement("div", { style: { maxWidth: 360, margin: "0 auto" } }, React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, React.createElement(Fld, { label: "동" }, React.createElement("input", { style: S.inp, placeholder: "예: 101", value: f.dong, maxLength: 3, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: onlyDigits(e.target.value, 3) })) })), React.createElement(Fld, { label: "호" }, React.createElement("input", { style: S.inp, placeholder: "예: 1502", value: f.ho, maxLength: 4, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: onlyDigits(e.target.value, 4) })) }))), React.createElement(Fld, { label: "이름" }, React.createElement("input", { style: S.inp, placeholder: "실명 입력", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: onlyNameText(e.target.value) })), onKeyDown: (e) => e.key === "Enter" && verify() })), err && React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 8, fontWeight: 500 } }, err), React.createElement(PBtn, { onClick: verify }, verifying ? "확인 중..." : "본인 확인"))) : React.createElement(React.Fragment, null, React.createElement("p", { style: { fontSize: 15, color: "#374151", lineHeight: 1.8, padding: "16px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #2563eb", marginBottom: post.answer ? 20 : 0 } }, post.content), post.answer && React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "14px 16px" } }, React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#15803d", marginBottom: 8 } }, "💬 관리자 답변"), React.createElement("p", { style: { fontSize: 14, color: "#166534", lineHeight: 1.7 } }, post.answer), post.answeredAt && React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginTop: 6 } }, fmt(post.answeredAt))), actionBox)));
 }
 function BoardWrite({ board, onAdd, onBack, notify, isMobile }) {
   const [step, setStep] = useState("privacy");
   const [f, setF] = useState({ title: "", content: "", cat: "", dong: "", ho: "", name: "", phone: "" });
   const [err, setErr] = useState({});
-  if (step === "privacy") return CE("div", { style: { maxWidth: 640, margin: "0 auto" } }, CE(BackBtn, { onClick: onBack }), CE(PrivacyModal, { purpose: "건의사항 작성", onOk: () => setStep("form"), onCancel: onBack, inline: true }));
-  const validate = () => { const e = {}; if (!f.title.trim()) e.title = "제목을 입력하세요."; if (!f.content.trim()) e.content = "내용을 입력하세요."; if (!f.cat) e.cat = "분야를 선택하세요."; validateResidentInto(e, f, true); setErr(e); return Object.keys(e).length === 0; };
-  const submit = () => { if (!validate()) { notify(Object.values(err).includes("3자리 숫자") ? residentErrMsg : "필수 항목을 확인해주세요.", "err"); return; } const id = `BRD-${String(board.length + 1).padStart(3, "0")}`; onAdd({ id, title: f.title.trim(), content: f.content.trim(), cat: f.cat, author: { dong: f.dong, ho: f.ho, name: f.name.trim(), phone: maskPh(f.phone) }, createdAt: appNow(), status: "pending", answer: "", answeredAt: "" }); onBack(); };
-  return CE("div", { style: { maxWidth: 640, margin: "0 auto" } }, CE(BackBtn, { onClick: onBack }), CE("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, CE("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "건의사항 작성"), CE("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "내용은 작성자 본인과 관리자만 열람 가능합니다. 입력한 작성자 정보 확인 후 수정·삭제할 수 있습니다."), CE(SLabel, null, "건의 내용"), CE(Fld, { label: "제목", err: err.title }, CE("input", { style: S.inp, placeholder: "건의 제목을 간결하게 입력하세요", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), CE(Fld, { label: "분야", err: err.cat }, CE("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, CE("option", { value: "" }, "선택하세요"), BOARD_CATS.map((c) => CE("option", { key: c }, c)))), CE(Fld, { label: "상세 내용", err: err.content }, CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), placeholder: "건의 내용을 구체적으로 작성해주세요", value: f.content, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })), CE(SLabel, null, "작성자 정보"), CE(ResidentInputRow, { f, setF, err, phoneRequired: true }), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, CE(PBtn, { onClick: submit }, "건의하기"), CE(GBtn, { onClick: onBack }, "취소"))));
+  if (step === "privacy") return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement(PrivacyModal, { purpose: "\uAC74\uC758\uC0AC\uD56D \uC791\uC131", onOk: () => setStep("form"), onCancel: onBack, inline: true }));
+  const validate = () => {
+    const e = {};
+    if (!f.title.trim()) e.title = "\uC81C\uBAA9\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.content.trim()) e.content = "\uB0B4\uC6A9\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.cat) e.cat = "\uBD84\uC57C\uB97C \uC120\uD0DD\uD558\uC138\uC694.";
+    if (!f.dong) e.dong = "\uB3D9\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.ho) e.ho = "\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.name) e.name = "\uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694.";
+    if (!f.phone) e.phone = "\uC804\uD654\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694.";
+    setErr(e);
+    return Object.keys(e).length === 0;
+  };
+  const submit = () => {
+    if (!validate()) return;
+    const id = `BRD-${String(board.length + 1).padStart(3, "0")}`;
+    onAdd({
+      id,
+      title: f.title,
+      content: f.content,
+      cat: f.cat,
+      author: { dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone) },
+      createdAt: nowDT(),
+      status: "pending",
+      answer: "",
+      answeredAt: ""
+    });
+    onBack();
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uAC74\uC758\uC0AC\uD56D \uC791\uC131"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uB0B4\uC6A9\uC740 \uC791\uC131\uC790 \uBCF8\uC778\uB9CC \uC5F4\uB78C \uAC00\uB2A5\uD569\uB2C8\uB2E4. \uAD00\uB9AC\uC790\uAC00 \uAC80\uD1A0 \uD6C4 \uB2F5\uBCC0\uB4DC\uB9BD\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uAC74\uC758 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uAC74\uC758 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), BOARD_CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.content }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), placeholder: "\uAC74\uC758 \uB0B4\uC6A9\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.content, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC791\uC131\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790\uB9CC \uC5F4\uB78C \xB7 \uBAA9\uC801 \uB2EC\uC131 \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85 \uC785\uB825", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uAC74\uC758\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
 }
-
 function AdminLogin({ pw, setPw, err, onLogin }) {
   return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", paddingTop: 40 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: "32px 28px", width: "100%", maxWidth: 360, border: "1px solid #e5e7eb", boxShadow: "0 2px 16px rgba(0,0,0,.07)" } }, /* @__PURE__ */ React.createElement("h2", { style: { textAlign: "center", color: "#111827", marginBottom: 6, fontSize: 18, fontWeight: 800 } }, "\uAD00\uB9AC\uC790 \uB85C\uADF8\uC778"), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "#9ca3af", fontSize: 13, marginBottom: 22 } }, "\uAD00\uB9AC\uC790 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694"), /* @__PURE__ */ React.createElement(Fld, { label: "\uBE44\uBC00\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { type: "password", style: S.inp, placeholder: "\uBE44\uBC00\uBC88\uD638", value: pw, onChange: (e) => setPw(e.target.value), onKeyDown: (e) => e.key === "Enter" && onLogin(), autoComplete: "current-password" })), err && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 10, fontWeight: 500 } }, err), /* @__PURE__ */ React.createElement(PBtn, { onClick: onLogin }, "\uB85C\uADF8\uC778"), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "#d1d5db", fontSize: 11, marginTop: 12 } }, "\uAE30\uBCF8 \uBE44\uBC00\uBC88\uD638: admin1234")));
 }
-function AdminPanel({ ag, vt, cfg, board, patchAg, deleteAg, patchBoard, deleteBoard, patchVt, addVt, setCfg, saveCfgToGas, onBack, notify, isMobile }) {
+function AdminPanel({ ag, vt, cfg, board, patchAg, deleteAg, patchVt, addVt, deleteBoard, setCfg, saveCfgToGas, onBack, notify, isMobile }) {
   const [tab, setTab] = useState("overview");
   const tabs = [{ v: "overview", l: "\uD604\uD669" }, { v: "agenda", l: "\uC548\uAC74" }, { v: "vote", l: "\uC815\uCC45\uC790\uBB38" }, { v: "board", l: "\uAC74\uC758\uC0AC\uD56D" }, { v: "cfg", l: "\uC124\uC815" }];
   return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: isMobile ? 17 : 20, color: "#111827" } }, "\uAD00\uB9AC\uC790 \uD328\uB110"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "\uC804\uCCB4 \uD604\uD669 \uD655\uC778 \uBC0F \uCEE8\uD2B8\uB864")), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack, style: { width: "auto", padding: "7px 14px", fontSize: 13 } }, "\u2190 \uBA54\uC778")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", borderBottom: "2px solid #e5e7eb", marginBottom: 20, overflowX: "auto" } }, tabs.map((t) => /* @__PURE__ */ React.createElement(
@@ -963,7 +1121,7 @@ function AdminPanel({ ag, vt, cfg, board, patchAg, deleteAg, patchBoard, deleteB
       }
     },
     t.l
-  ))), tab === "overview" && /* @__PURE__ */ React.createElement(AdminOverview, { ag, vt, isMobile }), tab === "board" && /* @__PURE__ */ React.createElement(AdminBoard, { board, patchBoard, deleteBoard, notify }), tab === "vote" && /* @__PURE__ */ React.createElement(AdminVotes, { vt, patchVt, addVt, notify, isMobile }), tab === "agenda" && /* @__PURE__ */ React.createElement(AdminAgendas, { ag, patchAg, deleteAg, cfg, notify, isMobile }), tab === "cfg" && /* @__PURE__ */ React.createElement(AdminCfg, { cfg, setCfg, saveCfgToGas, notify }));
+  ))), tab === "overview" && /* @__PURE__ */ React.createElement(AdminOverview, { ag, vt, isMobile }), tab === "board" && /* @__PURE__ */ React.createElement(AdminBoard, { board, deleteBoard, notify }), tab === "vote" && /* @__PURE__ */ React.createElement(AdminVotes, { vt, patchVt, addVt, notify, isMobile }), tab === "agenda" && /* @__PURE__ */ React.createElement(AdminAgendas, { ag, patchAg, deleteAg, cfg, notify, isMobile }), tab === "cfg" && /* @__PURE__ */ React.createElement(AdminCfg, { cfg, setCfg, saveCfgToGas, notify }));
 }
 function AdminOverview({ ag, vt, isMobile }) {
   const vtActive = vt.filter((v) => canVote(v));
@@ -1010,77 +1168,54 @@ function AdminOverview({ ag, vt, isMobile }) {
   );
 }
 
-
-
-function AdminBoard({ board, patchBoard, deleteBoard, notify }) {
+function AdminBoard({ board, deleteBoard, notify }) {
   const [sel, setSel] = useState(null);
   const [answer, setAnswer] = useState("");
-  const [edit, setEdit] = useState(null);
-  const [err, setErr] = useState({});
-  const choose = (b) => {
-    setSel(b);
-    setAnswer(b.answer || "");
-    setEdit({ title: b.title || "", content: b.content || "", cat: b.cat || "", dong: b.author.dong || "", ho: b.author.ho || "", name: b.author.name || "", phone: b.author.phone || "" });
-    setErr({});
-  };
   const saveAnswer = (id) => {
-    if (!answer.trim()) { notify("답변 내용을 입력하세요.", "err"); return; }
-    const patch = { status: "answered", answer: answer.trim(), answeredAt: appNow() };
-    patchBoard(id, patch);
-    setSel((p) => __spreadProps(__spreadValues({}, p), patch));
-    notify("답변이 등록되었습니다.");
+    if (!answer.trim()) {
+      notify("\uB2F5\uBCC0 \uB0B4\uC6A9\uC744 \uC785\uB825\uD558\uC138\uC694.", "err");
+      return;
+    }
+    const updatedAt = nowDT();
+    const stored = JSON.parse(localStorage.getItem("rp3_board") || JSON.stringify(board || []));
+    const updated = stored.map((b) => b.id === id ? __spreadProps(__spreadValues({}, b), { status: "answered", answer, answeredAt: updatedAt }) : b);
+    localStorage.setItem("rp3_board", JSON.stringify(updated));
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "answerBoard", id, answer, adminPw: "admin1234" }).catch(() => {});
+    setSel((p) => p ? __spreadProps(__spreadValues({}, p), { status: "answered", answer, answeredAt: updatedAt }) : p);
+    setAnswer("");
+    notify("\uB2F5\uBCC0\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
   };
-  const savePost = () => {
-    const e = {};
-    if (!edit.title.trim()) e.title = "제목을 입력하세요.";
-    if (!edit.content.trim()) e.content = "내용을 입력하세요.";
-    if (!edit.cat) e.cat = "분야를 선택하세요.";
-    validateResidentInto(e, edit, false);
-    setErr(e);
-    if (Object.keys(e).length) { notify(Object.values(e).includes("3자리 숫자") || Object.values(e).includes("3~4자리 숫자") || Object.values(e).includes("텍스트만") ? residentErrMsg : "필수 항목을 확인해주세요.", "err"); return; }
-    const patch = { title: edit.title.trim(), content: edit.content.trim(), cat: edit.cat, author: { dong: edit.dong, ho: edit.ho, name: edit.name.trim(), phone: maskPh(edit.phone || "") } };
-    patchBoard(sel.id, patch);
-    setSel((p) => __spreadProps(__spreadValues({}, p), patch));
-    notify("건의사항이 수정되었습니다.");
-  };
-  const remove = () => {
-    if (!sel || !window.confirm("이 건의사항을 삭제하시겠습니까?")) return;
-    deleteBoard(sel.id);
+  const removePost = (post) => {
+    if (!post || !post.id) return;
+    if (!confirm("\uC120\uD0DD\uD55C \uAE00\uC744 \uC0AD\uC81C\uD558\uBA74 \uBCF5\uAD6C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.\n\uC815\uB9D0 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) return;
+    deleteBoard(post.id);
     setSel(null);
-    setEdit(null);
-    notify("건의사항이 삭제되었습니다.");
+    setAnswer("");
+    notify("\uAE00\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
   };
-  const rows = board.map((b) => CE("div", {
-    key: b.id,
-    style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: sel && sel.id === b.id ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8, cursor: "pointer" }),
-    onClick: () => choose(b)
-  },
-    CE("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 7 } },
-      CE(Tag, { color: catTag(b.cat).color, bg: catTag(b.cat).background }, b.cat),
-      CE(Tag, { color: b.status === "answered" ? "#16a34a" : "#d97706", bg: b.status === "answered" ? "#dcfce7" : "#fef3c7" }, b.status === "answered" ? "답변완료" : "답변대기"),
-      CE("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, b.id)
-    ),
-    CE("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, b.title),
-    CE("div", { style: { fontSize: 12, color: "#9ca3af" } }, b.author.dong, "동 ", b.author.ho, "호 ", CE("b", { style: { color: "#374151" } }, b.author.name), " · ", b.author.phone, " · ", fmt(b.createdAt))
-  ));
-  const list = CE("div", null, board.length === 0 && CE(EmptyMsg, { msg: "건의사항이 없습니다." }), rows);
-  const detail = sel && edit ? CE("div", { style: __spreadProps(__spreadValues({}, S.adminDetail), { alignSelf: "start", position: "sticky", top: 80 }) },
-    CE("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
-      CE("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "건의 상세 / 수정"),
-      CE("button", { style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#9ca3af" }, onClick: () => setSel(null) }, "✕")
-    ),
-    CE(Fld, { label: "제목", err: err.title }, CE("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })),
-    CE(Fld, { label: "분야", err: err.cat }, CE("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, BOARD_CATS.map((c) => CE("option", { key: c }, c)))),
-    CE(Fld, { label: "내용", err: err.content }, CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 95, resize: "vertical" }), value: edit.content, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })),
-    CE(SLabel, null, "작성자 정보"),
-    CE(ResidentInputRow, { f: edit, setF: setEdit, err }),
-    CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginBottom: 16 } }, CE(PBtn, { onClick: savePost }, "글 수정 저장"), CE(SmallBtn, { danger: true, onClick: remove, style: { flex: 1, minHeight: 44 } }, "삭제")),
-    CE("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 8, borderTop: "1px solid #f3f4f6", paddingTop: 14 } }, "💬 관리자 답변"),
-    sel.status === "answered" && sel.answer && CE("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#166534", lineHeight: 1.7, marginBottom: 10 } }, sel.answer),
-    CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 80, resize: "vertical", marginBottom: 10 }), placeholder: "답변을 입력하세요", value: answer, onChange: (e) => setAnswer(e.target.value) }),
-    CE(PBtn, { onClick: () => saveAnswer(sel.id) }, "답변 등록")
-  ) : null;
-  return CE("div", { style: { width: "100%" } }, CE("div", { style: { display: "grid", gridTemplateColumns: sel ? "1fr 1.1fr" : "1fr", gap: 16 } }, list, detail));
+  const latestBoard = Array.isArray(board) ? board : [];
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: sel ? "1fr 1.1fr" : "1fr", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, latestBoard.length === 0 && /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uAC74\uC758\uC0AC\uD56D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }), latestBoard.map((b) => /* @__PURE__ */ React.createElement(
+    "div",
+    {
+      key: b.id,
+      style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: sel && sel.id === b.id ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8, cursor: "pointer" }),
+      onClick: () => {
+        setSel(b);
+        setAnswer(b.answer || "");
+      }
+    },
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(b.cat).color, bg: catTag(b.cat).background }, b.cat), /* @__PURE__ */ React.createElement(Tag, { color: b.status === "answered" ? "#16a34a" : "#d97706", bg: b.status === "answered" ? "#dcfce7" : "#fef3c7" }, b.status === "answered" ? "\uB2F5\uBCC0\uC644\uB8CC" : "\uB2F5\uBCC0\uB300\uAE30"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, b.id)),
+    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, b.title),
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, maskDong(b.author.dong), "\uB3D9 ", maskHo(b.author.ho), "\uD638 ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, b.author.name), " \xB7 ", b.author.phone, " \xB7 ", fmt(b.createdAt))
+  ))), sel && /* @__PURE__ */ React.createElement("div", { style: __spreadProps(__spreadValues({}, S.adminDetail), { alignSelf: "start", position: "sticky", top: 80 }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "\uAC74\uC758 \uC0C1\uC138"), /* @__PURE__ */ React.createElement("button", { style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#9ca3af" }, onClick: () => setSel(null) }, "\u2715")), [{ l: "\uBC88\uD638", v: sel.id }, { l: "\uBD84\uC57C", v: sel.cat }, { l: "\uC81C\uBAA9", v: sel.title }, { l: "\uC791\uC131\uC790", v: `${sel.author.dong}\uB3D9 ${sel.author.ho}\uD638 ${sel.author.name} (${sel.author.phone})` }, { l: "\uB4F1\uB85D\uC77C", v: fmt(sel.createdAt) }].map(({ l, v }) => /* @__PURE__ */ React.createElement("div", { key: l, style: S.infoRow }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af", minWidth: 60, fontSize: 13, flexShrink: 0 } }, l), /* @__PURE__ */ React.createElement("b", { style: { fontSize: 13, color: "#111827" } }, v))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", background: "#f9fafb", borderRadius: 8, fontSize: 13, color: "#374151", lineHeight: 1.7, margin: "12px 0 12px", borderLeft: "3px solid #e5e7eb" } }, sel.content), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => removePost(sel), style: { padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, background: "#dc2626", color: "#fff" } }, "\uAE00 \uC0AD\uC81C")), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 8 } }, "\u{1F4AC} \uAD00\uB9AC\uC790 \uB2F5\uBCC0"), sel.status === "answered" && sel.answer && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#166534", lineHeight: 1.7, marginBottom: 10 } }, sel.answer), /* @__PURE__ */ React.createElement(
+    "textarea",
+    {
+      style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 80, resize: "vertical", marginBottom: 10 }),
+      placeholder: "\uB2F5\uBCC0\uC744 \uC785\uB825\uD558\uC138\uC694",
+      value: answer,
+      onChange: (e) => setAnswer(e.target.value)
+    }
+  ), /* @__PURE__ */ React.createElement(PBtn, { onClick: () => saveAnswer(sel.id) }, "\uB2F5\uBCC0 \uB4F1\uB85D"))));
 }
 
 function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
@@ -1214,21 +1349,55 @@ function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
   );
 }
 
-
 function AdminAgendas({ ag, patchAg, deleteAg, cfg, notify, isMobile }) {
   const [sel, setSel] = useState(null);
   const [search, setSearch] = useState("");
-  const [stFlt, setStFlt] = useState("전체");
-  const [edit, setEdit] = useState(null);
-  const [err, setErr] = useState({});
-  const stOpts = [{ v: "active", l: "의견수렴" }, { v: "declined", l: "반려" }, { v: "closed", l: "마감" }, { v: "passed", l: "가결" }, { v: "rejected", l: "부결" }];
-  const filtered = ag.filter((a) => { const sOk = stFlt === "전체" || a.status === stFlt; const kOk = !search || a.title.includes(search) || a.submitter.name.includes(search) || a.submitter.dong.includes(search); return sOk && kOk; });
-  const openRow = (a, open) => { if (open) { setSel(null); setEdit(null); return; } setSel(a); setEdit({ title: a.title || "", desc: a.desc || "", cat: a.cat || "", dong: a.submitter.dong || "", ho: a.submitter.ho || "", name: a.submitter.name || "", phone: a.submitter.phone || "" }); setErr({}); };
-  const saveAgenda = (id) => { const e = {}; if (!edit.title.trim()) e.title = "입력하세요."; if (!edit.desc.trim()) e.desc = "입력하세요."; if (!edit.cat) e.cat = "선택하세요."; validateResidentInto(e, edit, false); setErr(e); if (Object.keys(e).length) { notify(Object.values(e).includes("3자리 숫자") || Object.values(e).includes("3~4자리 숫자") || Object.values(e).includes("텍스트만") ? residentErrMsg : "필수 항목을 확인해주세요.", "err"); return; } const patch = { title: edit.title.trim(), desc: edit.desc.trim(), cat: edit.cat, submitter: { dong: edit.dong, ho: edit.ho, name: edit.name.trim(), phone: maskPh(edit.phone || "") } }; patchAg(id, patch); setSel((p) => __spreadProps(__spreadValues({}, p), patch)); notify("안건이 수정되었습니다."); };
-  const removeAgenda = (id) => { if (!window.confirm("이 안건을 삭제하시겠습니까?")) return; deleteAg(id); setSel(null); setEdit(null); notify("안건이 삭제되었습니다."); };
-  return CE("div", { style: { width: "100%" } }, CE("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } }, CE("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 200, flex: 1 }), placeholder: "🔍 검색", value: search, onChange: (e) => setSearch(e.target.value) }), CE("div", { className: "scroll-x" }, [{ v: "전체", l: "전체" }, { v: "draft", l: "검토중" }, ...stOpts].map((s) => CE(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))), filtered.length === 0 && CE(EmptyMsg, { msg: "해당 안건 없음" }), filtered.map((a) => { const si = agSt(a); const open = sel && sel.id === a.id; return CE("div", { key: a.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) }, CE("div", { style: { cursor: "pointer" }, onClick: () => openRow(a, open) }, CE("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, CE(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), CE(Tag, { color: si.c, bg: si.bg }, si.t), CE("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, a.id)), CE("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, a.title), CE("div", { style: { fontSize: 12, color: "#9ca3af" } }, "📍 ", a.submitter.dong, "동 ", a.submitter.ho, "호 ", CE("b", { style: { color: "#374151" } }, a.submitter.name), " · ", a.submitter.phone), CE("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "✋ ", a.sigs.length, "명 · ", fmt(a.createdAt), a.endDate ? ` · ~${fmt(a.endDate)}` : "")), CE("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() }, a.status === "draft" && CE(React.Fragment, null, CE("button", { style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#16a34a", color: "#fff", minHeight: 32 }, onClick: () => { const approvedAt = appNow(), endDate = addD(approvedAt, cfg.periodDays); patchAg(a.id, { status: "active", approvedAt, endDate }); if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "active", approvedAt, endDate })); notify(`승인 완료. 마감: ${fmt(endDate)}`); } }, "✓ 승인"), CE("button", { style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#dc2626", color: "#fff", minHeight: 32 }, onClick: () => { patchAg(a.id, { status: "declined" }); if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "declined" })); notify("반려되었습니다."); } }, "✗ 반려")), a.status !== "draft" && stOpts.map((s) => CE(ABtn, { key: s.v, active: a.status === s.v, onClick: () => { patchAg(a.id, { status: s.v }); if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: s.v })); } }, s.l)), CE(SmallBtn, { onClick: () => openRow(a, false) }, "수정"), CE(SmallBtn, { danger: true, onClick: () => removeAgenda(a.id) }, "삭제")), open && edit && CE("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } }, CE(Fld, { label: "제목", err: err.title }, CE("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), CE(Fld, { label: "분야", err: err.cat }, CE("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, CATS.map((c) => CE("option", { key: c }, c)))), CE(Fld, { label: "내용", err: err.desc }, CE("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 90, resize: "vertical" }), value: edit.desc, onChange: (e) => setEdit((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), CE(SLabel, null, "신청자 정보"), CE(ResidentInputRow, { f: edit, setF: setEdit, err }), CE("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginBottom: 12 } }, CE(PBtn, { onClick: () => saveAgenda(a.id) }, "안건 수정 저장"), CE(SmallBtn, { danger: true, onClick: () => removeAgenda(a.id), style: { flex: 1, minHeight: 44 } }, "삭제")), CE("div", { style: { display: "grid", gridTemplateColumns: "80px 1fr", gap: 4, marginBottom: 10 } }, [{ l: "승인일", v: a.approvedAt ? fmt(a.approvedAt) : "미승인" }, { l: "마감일", v: a.endDate ? fmt(a.endDate) : "미설정" }, { l: "찬성", v: `${a.sigs.length}명` }].map(({ l, v }) => CE(React.Fragment, { key: l }, CE("span", { style: { fontSize: 12, color: "#9ca3af" } }, l), CE("b", { style: { fontSize: 12, color: "#111827" } }, v)))), CE("div", { style: { fontSize: 12, color: "#9ca3af", fontWeight: 600, marginBottom: 6 } }, "찬성 제출자 (", a.sigs.length, "명)"), CE("div", { style: { maxHeight: 160, overflowY: "auto" } }, a.sigs.length === 0 ? CE(EmptyMsg, { msg: "없음" }) : a.sigs.map((s, i) => CE("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 1fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, CE("span", { style: { color: "#9ca3af" } }, i + 1), CE("span", null, s.dong, "동 ", s.ho, "호"), CE("span", null, s.name), CE("span", { style: { color: "#6b7280" } }, s.phone)))))); }));
+  const [stFlt, setStFlt] = useState("\uC804\uCCB4");
+  const stOpts = [{ v: "active", l: "\uC758\uACAC\uC218\uB834" }, { v: "declined", l: "\uBC18\uB824" }, { v: "closed", l: "\uB9C8\uAC10" }, { v: "passed", l: "\uAC00\uACB0" }, { v: "rejected", l: "\uBD80\uACB0" }];
+  const filtered = ag.filter((a) => {
+    const sOk = stFlt === "\uC804\uCCB4" || a.status === stFlt;
+    const kOk = !search || a.title.includes(search) || a.submitter.name.includes(search) || a.submitter.dong.includes(search);
+    return sOk && kOk;
+  });
+  const removeAgenda = (item) => {
+    if (!item || !item.id) return;
+    if (!confirm("\uC120\uD0DD\uD55C \uC548\uAC74\uC744 \uC0AD\uC81C\uD558\uBA74 \uBCF5\uAD6C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.\n\uC815\uB9D0 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) return;
+    deleteAg(item.id);
+    if (sel && sel.id === item.id) setSel(null);
+    notify("\uC548\uAC74\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+  };
+  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 200, flex: 1 }), placeholder: "\u{1F50D} \uAC80\uC0C9", value: search, onChange: (e) => setSearch(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, [{ v: "\uC804\uCCB4", l: "\uC804\uCCB4" }, { v: "draft", l: "\uAC80\uD1A0\uC911" }, ...stOpts].map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))), filtered.length === 0 && /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uD574\uB2F9 \uC548\uAC74 \uC5C6\uC74C" }), filtered.map((a) => {
+    const si = agSt(a);
+    const open = sel && sel.id === a.id;
+    return /* @__PURE__ */ React.createElement("div", { key: a.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) }, /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : a) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, a.id)), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\u{1F4CD} ", a.submitter.dong, "\uB3D9 ", a.submitter.ho, "\uD638 ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, a.submitter.name), " \xB7 ", a.submitter.phone), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "\u270B ", a.sigs.length, "\uBA85 \xB7 ", fmt(a.createdAt), a.endDate ? ` \xB7 ~${fmt(a.endDate)}` : "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() }, a.status === "draft" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#16a34a", color: "#fff", minHeight: 32 },
+        onClick: () => {
+          const approvedAt = nowDT(), endDate = addD(approvedAt, cfg.periodDays);
+          patchAg(a.id, { status: "active", approvedAt, endDate });
+          if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "active", approvedAt, endDate }));
+          notify(`\uC2B9\uC778 \uC644\uB8CC. \uB9C8\uAC10: ${fmt(endDate)}`);
+        }
+      },
+      "\u2713 \uC2B9\uC778"
+    ), /* @__PURE__ */ React.createElement(
+      "button",
+      {
+        style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#dc2626", color: "#fff", minHeight: 32 },
+        onClick: () => {
+          patchAg(a.id, { status: "declined" });
+          if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "declined" }));
+          notify("\uBC18\uB824\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+        }
+      },
+      "\u2717 \uBC18\uB824"
+    )), a.status !== "draft" && stOpts.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: a.status === s.v, onClick: () => {
+      patchAg(a.id, { status: s.v });
+      if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: s.v }));
+    } }, s.l))), /* @__PURE__ */ React.createElement("button", { onClick: () => removeAgenda(a), style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 800, background: "#dc2626", color: "#fff", minHeight: 32 } }, "\uC0AD\uC81C"), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.7, marginBottom: 12, padding: "10px 12px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, a.desc), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "80px 1fr", gap: 4, marginBottom: 10 } }, [{ l: "\uC2B9\uC778\uC77C", v: a.approvedAt ? fmt(a.approvedAt) : "\uBBF8\uC2B9\uC778" }, { l: "\uB9C8\uAC10\uC77C", v: a.endDate ? fmt(a.endDate) : "\uBBF8\uC124\uC815" }, { l: "\uCC2C\uC131", v: `${a.sigs.length}\uBA85` }].map(({ l, v }) => /* @__PURE__ */ React.createElement(React.Fragment, { key: l }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "#9ca3af" } }, l), /* @__PURE__ */ React.createElement("b", { style: { fontSize: 12, color: "#111827" } }, v)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", fontWeight: 600, marginBottom: 6 } }, "\uCC2C\uC131 \uC81C\uCD9C\uC790 (", a.sigs.length, "\uBA85)"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: 160, overflowY: "auto" } }, a.sigs.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : a.sigs.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 1fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, i + 1), /* @__PURE__ */ React.createElement("span", null, s.dong, "\uB3D9 ", s.ho, "\uD638"), /* @__PURE__ */ React.createElement("span", null, s.name), /* @__PURE__ */ React.createElement("span", { style: { color: "#6b7280" } }, s.phone))))));
+  }));
 }
-
 function AdminCfg({ cfg, setCfg, saveCfgToGas, notify }) {
   const [d, setD] = useState(__spreadValues({}, cfg));
   const [pw, setPw] = useState({old:"",nw:"",nw2:""});
@@ -1548,4 +1717,5 @@ const _il=document.getElementById("init-loading");if(_il)_il.remove();
 ReactDOM.createRoot(document.getElementById("root")).render(/* @__PURE__ */ React.createElement(App, null));
 
 </script>
-  l>
+</body>
+</html>
