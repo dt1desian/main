@@ -1,3 +1,6 @@
+
+
+
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -210,15 +213,15 @@ const maskName = (s) => {
 };
 const maskPh = (p) => (p || "").replace(/(\d{3})-(\d{4})-(\d{4})/, "$1-****-$3");
 const onlyDigits = (v, maxLen) => String(v || "").replace(/\D/g, "").slice(0, maxLen || 20);
-const onlyNameText = (v) => String(v || "").replace(/[^가-힣a-zA-Z\s]/g, "");
+const onlyNameText = (v) => String(v || "").replace(/[^가-힣a-zA-Z]/g, "").slice(0, 4);
 const isDong3 = (v) => /^\d{3}$/.test(String(v || "").trim());
 const isHo34 = (v) => /^\d{3,4}$/.test(String(v || "").trim());
-const isNameText = (v) => /^[가-힣a-zA-Z\s]+$/.test(String(v || "").trim());
+const isNameText = (v) => /^[가-힣a-zA-Z]{1,4}$/.test(String(v || "").trim());
 const sameOwner = (a, b) => !!a && !!b && String(a.dong || "").trim() === String(b.dong || "").trim() && String(a.ho || "").trim() === String(b.ho || "").trim() && String(a.name || "").trim() === String(b.name || "").trim();
 const validatePersonText = (f) => {
   if (!isDong3(f.dong)) return "동은 숫자 3자리로 입력해 주세요.";
   if (!isHo34(f.ho)) return "호수는 숫자 3~4자리로 입력해 주세요.";
-  if (!isNameText(f.name)) return "이름은 한글 또는 영문만 입력해 주세요.";
+  if (!isNameText(f.name)) return "이름은 한글 또는 영문 1~4글자로 입력해 주세요.";
   return "";
 };
 
@@ -412,6 +415,11 @@ function App() {
     if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchVt", id, patch: p, adminPw: "admin1234" }).catch(() => {
     });
   };
+  const deleteVt = (id) => {
+    setVt((prev) => prev.filter((v) => v.id !== id));
+    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "deleteVt", id, adminPw: "admin1234" }).catch(() => {
+    });
+  };
   const patchVtVote = (id, auth, patch) => {
     setVt((prev) => prev.map((v) => v.id === id ? __spreadProps(__spreadValues({}, v), { votes: (v.votes || []).map((x) => sameOwner(x, auth) ? __spreadValues(__spreadValues({}, x), patch) : x) }) : v));
     if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "patchVtVote", id, auth, patch }).catch(() => {});
@@ -447,7 +455,7 @@ function App() {
     addVtE(id, e);
   }, onPatchVote: patchVtVote, onDeleteVote: deleteVtVote, notify, isMobile }), page === "agenda" && sub === "list" && /* @__PURE__ */ React.createElement(AgendaList, { ag, cfg, nav, isMobile }), page === "agenda" && sub === "detail" && selAg && /* @__PURE__ */ React.createElement(AgendaDetail, { ag: selAg, cfg, onBack: () => nav("agenda"), onSign: (id, sig) => {
     addAgSig(id, sig);
-  }, onPatchAg: patchAg, onDeleteAg: deleteAg, notify, isMobile }), page === "board" && sub === "list" && /* @__PURE__ */ React.createElement(BoardList, { board, nav, isMobile }), page === "board" && sub === "detail" && /* @__PURE__ */ React.createElement(BoardDetail, { post: board.find((b) => b.id === selId), onBack: () => nav("board"), onPatchBoard: patchBoard, onDeleteBoard: deleteBoard, notify, isMobile }), page === "board" && sub === "write" && /* @__PURE__ */ React.createElement(BoardWrite, { board, onAdd: addBoard, onBack: () => nav("board"), notify, isMobile }), page === "agenda" && sub === "submit" && /* @__PURE__ */ React.createElement(AgendaSubmit, { ag, onAdd: addAg, onBack: () => nav("agenda"), notify, isMobile }), page === "admin" && (adminOk ? /* @__PURE__ */ React.createElement(AdminPanel, { ag, vt, cfg, board, patchAg, deleteAg, patchVt, addVt, patchBoard, deleteBoard, setCfg, saveCfgToGas, onBack: () => nav("home"), notify, isMobile }) : /* @__PURE__ */ React.createElement(AdminLogin, { pw: adminPw, setPw: setAdminPw, err: adminErr, onLogin: () => {
+  }, onPatchAg: patchAg, onDeleteAg: deleteAg, notify, isMobile }), page === "board" && sub === "list" && /* @__PURE__ */ React.createElement(BoardList, { board, nav, isMobile }), page === "board" && sub === "detail" && /* @__PURE__ */ React.createElement(BoardDetail, { post: board.find((b) => b.id === selId), onBack: () => nav("board"), onPatchBoard: patchBoard, onDeleteBoard: deleteBoard, notify, isMobile }), page === "board" && sub === "write" && /* @__PURE__ */ React.createElement(BoardWrite, { board, onAdd: addBoard, onBack: () => nav("board"), notify, isMobile }), page === "agenda" && sub === "submit" && /* @__PURE__ */ React.createElement(AgendaSubmit, { ag, onAdd: addAg, onBack: () => nav("agenda"), notify, isMobile }), page === "admin" && (adminOk ? /* @__PURE__ */ React.createElement(AdminPanel, { ag, vt, cfg, board, patchAg, deleteAg, patchVt, deleteVt, addVt, patchBoard, deleteBoard, setCfg, saveCfgToGas, onBack: () => nav("home"), notify, isMobile }) : /* @__PURE__ */ React.createElement(AdminLogin, { pw: adminPw, setPw: setAdminPw, err: adminErr, onLogin: () => {
     if (GAS_URL !== 'YOUR_GAS_URL_HERE') {
       gasCall({ action: "adminLogin", pw: adminPw }).then((res) => {
         if (res.ok && res.data) {
@@ -962,7 +970,7 @@ function AgSignForm({ existing, onSign, onCancel, notify, isMobile }) {
     }
     onSign({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), date: nowDT() });
   };
-  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uCC2C\uC131 \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
+  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uCC2C\uC131 \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 14 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: onlyNameText(e.target.value) })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
 }
 function AgendaSubmit({ ag, onAdd, onBack, notify, isMobile }) {
   const [step, setStep] = useState("privacy");
@@ -986,7 +994,7 @@ function AgendaSubmit({ ag, onAdd, onBack, notify, isMobile }) {
     onAdd({ id, title: f.title, desc: f.desc, cat: f.cat, submitter: { dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone) }, status: "draft", approvedAt: "", endDate: "", sigs: [], createdAt: nowDT() });
     onBack();
   };
-  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uC548\uAC74\uC2E0\uCCAD"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uAD00\uB9AC\uC790 \uC2B9\uC778 \uD6C4 \uACF5\uAC1C\uB429\uB2C8\uB2E4. \uAC1C\uC778\uC815\uBCF4\uB294 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uC989\uC2DC \uD3D0\uAE30\uB429\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uC548\uAC74 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC548\uAC74 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.desc }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 100, resize: "vertical" }), placeholder: "\uC548\uAC74 \uBC30\uACBD, \uD604\uD669, \uC694\uAD6C\uC0AC\uD56D\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.desc, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC2E0\uCCAD\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790 \uC5F4\uB78C \xB7 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uC548\uAC74 \uC811\uC218\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uC548\uAC74\uC2E0\uCCAD"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uAD00\uB9AC\uC790 \uC2B9\uC778 \uD6C4 \uACF5\uAC1C\uB429\uB2C8\uB2E4. \uAC1C\uC778\uC815\uBCF4\uB294 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uC989\uC2DC \uD3D0\uAE30\uB429\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uC548\uAC74 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC548\uAC74 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.desc }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 100, resize: "vertical" }), placeholder: "\uC548\uAC74 \uBC30\uACBD, \uD604\uD669, \uC694\uAD6C\uC0AC\uD56D\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.desc, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { desc: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC2E0\uCCAD\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790 \uC5F4\uB78C \xB7 \uCC98\uB9AC \uC644\uB8CC \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: onlyNameText(e.target.value) })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uC548\uAC74 \uC811\uC218\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
 }
 function PrivacyModal({ purpose, onOk, onCancel, inline }) {
   const [agreed, setAgreed] = useState(false);
@@ -1107,17 +1115,25 @@ function BoardWrite({ board, onAdd, onBack, notify, isMobile }) {
     });
     onBack();
   };
-  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uAC74\uC758\uC0AC\uD56D \uC791\uC131"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uB0B4\uC6A9\uC740 \uC791\uC131\uC790 \uBCF8\uC778\uB9CC \uC5F4\uB78C \uAC00\uB2A5\uD569\uB2C8\uB2E4. \uAD00\uB9AC\uC790\uAC00 \uAC80\uD1A0 \uD6C4 \uB2F5\uBCC0\uB4DC\uB9BD\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uAC74\uC758 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uAC74\uC758 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), BOARD_CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.content }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), placeholder: "\uAC74\uC758 \uB0B4\uC6A9\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.content, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC791\uC131\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790\uB9CC \uC5F4\uB78C \xB7 \uBAA9\uC801 \uB2EC\uC131 \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85 \uC785\uB825", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uAC74\uC758\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
+  return /* @__PURE__ */ React.createElement("div", { style: { maxWidth: 640, margin: "0 auto" } }, /* @__PURE__ */ React.createElement(BackBtn, { onClick: onBack }), /* @__PURE__ */ React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } }, /* @__PURE__ */ React.createElement("h2", { style: { fontSize: isMobile ? 17 : 20, fontWeight: 800, color: "#111827", marginBottom: 4 } }, "\uAC74\uC758\uC0AC\uD56D \uC791\uC131"), /* @__PURE__ */ React.createElement("p", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 20 } }, "\uB0B4\uC6A9\uC740 \uC791\uC131\uC790 \uBCF8\uC778\uB9CC \uC5F4\uB78C \uAC00\uB2A5\uD569\uB2C8\uB2E4. \uAD00\uB9AC\uC790\uAC00 \uAC80\uD1A0 \uD6C4 \uB2F5\uBCC0\uB4DC\uB9BD\uB2C8\uB2E4."), /* @__PURE__ */ React.createElement(SLabel, null, "\uAC74\uC758 \uB0B4\uC6A9"), /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9", err: err.title }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uAC74\uC758 \uC81C\uBAA9\uC744 \uAC04\uACB0\uD558\uAC8C \uC785\uB825\uD558\uC138\uC694", value: f.title, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { title: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uBD84\uC57C", err: err.cat }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: f.cat, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { cat: e.target.value })) }, /* @__PURE__ */ React.createElement("option", { value: "" }, "\uC120\uD0DD\uD558\uC138\uC694"), BOARD_CATS.map((c) => /* @__PURE__ */ React.createElement("option", { key: c }, c)))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC0C1\uC138 \uB0B4\uC6A9", err: err.content }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical" }), placeholder: "\uAC74\uC758 \uB0B4\uC6A9\uC744 \uAD6C\uCCB4\uC801\uC73C\uB85C \uC791\uC131\uD574 \uC8FC\uC138\uC694", value: f.content, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { content: e.target.value })) })), /* @__PURE__ */ React.createElement(SLabel, null, "\uC791\uC131\uC790 \uC815\uBCF4 (\uAD00\uB9AC\uC790\uB9CC \uC5F4\uB78C \xB7 \uBAA9\uC801 \uB2EC\uC131 \uD6C4 \uD3D0\uAE30)"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9", err: err.dong }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638", err: err.ho }, "  ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984", err: err.name }, " ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85 \uC785\uB825", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: onlyNameText(e.target.value) })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638", err: err.phone }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 8 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, "\uAC74\uC758\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack }, "\uCDE8\uC18C"))));
 }
 function AdminLogin({ pw, setPw, err, onLogin }) {
   return /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "center", paddingTop: 40 } }, /* @__PURE__ */ React.createElement("div", { style: { background: "#fff", borderRadius: 12, padding: "32px 28px", width: "100%", maxWidth: 360, border: "1px solid #e5e7eb", boxShadow: "0 2px 16px rgba(0,0,0,.07)" } }, /* @__PURE__ */ React.createElement("h2", { style: { textAlign: "center", color: "#111827", marginBottom: 6, fontSize: 18, fontWeight: 800 } }, "\uAD00\uB9AC\uC790 \uB85C\uADF8\uC778"), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "#9ca3af", fontSize: 13, marginBottom: 22 } }, "\uAD00\uB9AC\uC790 \uBE44\uBC00\uBC88\uD638\uB97C \uC785\uB825\uD558\uC138\uC694"), /* @__PURE__ */ React.createElement(Fld, { label: "\uBE44\uBC00\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { type: "password", style: S.inp, placeholder: "\uBE44\uBC00\uBC88\uD638", value: pw, onChange: (e) => setPw(e.target.value), onKeyDown: (e) => e.key === "Enter" && onLogin(), autoComplete: "current-password" })), err && /* @__PURE__ */ React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 10, fontWeight: 500 } }, err), /* @__PURE__ */ React.createElement(PBtn, { onClick: onLogin }, "\uB85C\uADF8\uC778"), /* @__PURE__ */ React.createElement("p", { style: { textAlign: "center", color: "#d1d5db", fontSize: 11, marginTop: 12 } }, "\uAE30\uBCF8 \uBE44\uBC00\uBC88\uD638: admin1234")));
 }
-function AdminPanel({ ag, vt, cfg, board, patchAg, deleteAg, patchVt, addVt, deleteBoard, setCfg, saveCfgToGas, onBack, notify, isMobile }) {
+
+function AdminPanel({ ag, vt, cfg, board, patchAg, deleteAg, patchVt, deleteVt, addVt, patchBoard, deleteBoard, setCfg, saveCfgToGas, onBack, notify, isMobile }) {
+  const h = React.createElement;
   const [tab, setTab] = useState("overview");
-  const tabs = [{ v: "overview", l: "\uD604\uD669" }, { v: "agenda", l: "\uC548\uAC74" }, { v: "vote", l: "\uC815\uCC45\uC790\uBB38" }, { v: "board", l: "\uAC74\uC758\uC0AC\uD56D" }, { v: "cfg", l: "\uC124\uC815" }];
-  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 } }, /* @__PURE__ */ React.createElement("div", null, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 800, fontSize: isMobile ? 17 : 20, color: "#111827" } }, "\uAD00\uB9AC\uC790 \uD328\uB110"), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "\uC804\uCCB4 \uD604\uD669 \uD655\uC778 \uBC0F \uCEE8\uD2B8\uB864")), /* @__PURE__ */ React.createElement(GBtn, { onClick: onBack, style: { width: "auto", padding: "7px 14px", fontSize: 13 } }, "\u2190 \uBA54\uC778")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", borderBottom: "2px solid #e5e7eb", marginBottom: 20, overflowX: "auto" } }, tabs.map((t) => /* @__PURE__ */ React.createElement(
-    "button",
-    {
+  const tabs = [{ v: "overview", l: "현황" }, { v: "agenda", l: "안건" }, { v: "vote", l: "정책자문" }, { v: "board", l: "건의사항" }, { v: "cfg", l: "설정" }];
+  return h("div", { style: { width: "100%" } },
+    h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 } },
+      h("div", null,
+        h("div", { style: { fontWeight: 800, fontSize: isMobile ? 17 : 20, color: "#111827" } }, "관리자 패널"),
+        h("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "전체 현황 확인 및 컨트롤")
+      ),
+      h(GBtn, { onClick: onBack, style: { width: "auto", padding: "7px 14px", fontSize: 13 } }, "← 메인")
+    ),
+    h("div", { style: { display: "flex", borderBottom: "2px solid #e5e7eb", marginBottom: 20, overflowX: "auto" } }, tabs.map((t) => h("button", {
       key: t.v,
       onClick: () => setTab(t.v),
       style: {
@@ -1132,9 +1148,13 @@ function AdminPanel({ ag, vt, cfg, board, patchAg, deleteAg, patchVt, addVt, del
         marginBottom: -2,
         whiteSpace: "nowrap"
       }
-    },
-    t.l
-  ))), tab === "overview" && /* @__PURE__ */ React.createElement(AdminOverview, { ag, vt, isMobile }), tab === "board" && /* @__PURE__ */ React.createElement(AdminBoard, { board, deleteBoard, notify }), tab === "vote" && /* @__PURE__ */ React.createElement(AdminVotes, { vt, patchVt, addVt, notify, isMobile }), tab === "agenda" && /* @__PURE__ */ React.createElement(AdminAgendas, { ag, patchAg, deleteAg, cfg, notify, isMobile }), tab === "cfg" && /* @__PURE__ */ React.createElement(AdminCfg, { cfg, setCfg, saveCfgToGas, notify }));
+    }, t.l))),
+    tab === "overview" && h(AdminOverview, { ag, vt, isMobile }),
+    tab === "board" && h(AdminBoard, { board, patchBoard, deleteBoard, notify }),
+    tab === "vote" && h(AdminVotes, { vt, patchVt, deleteVt, addVt, notify, isMobile }),
+    tab === "agenda" && h(AdminAgendas, { ag, patchAg, deleteAg, cfg, notify, isMobile }),
+    tab === "cfg" && h(AdminCfg, { cfg, setCfg, saveCfgToGas, notify })
+  );
 }
 function AdminOverview({ ag, vt, isMobile }) {
   const vtActive = vt.filter((v) => canVote(v));
@@ -1181,249 +1201,310 @@ function AdminOverview({ ag, vt, isMobile }) {
   );
 }
 
-function AdminBoard({ board, deleteBoard, notify }) {
-  const [sel, setSel] = useState(null);
+
+function AdminBoard({ board, patchBoard, deleteBoard, notify }) {
+  const h = React.createElement;
+  const [selId, setSelId] = useState(null);
   const [answer, setAnswer] = useState("");
-  const saveAnswer = (id) => {
-    if (!answer.trim()) {
-      notify("\uB2F5\uBCC0 \uB0B4\uC6A9\uC744 \uC785\uB825\uD558\uC138\uC694.", "err");
-      return;
-    }
+  const [edit, setEdit] = useState(null);
+  const latestBoard = Array.isArray(board) ? board : [];
+  const sel = latestBoard.find((b) => b.id === selId) || null;
+  const openPost = (b) => {
+    setSelId(b.id);
+    setAnswer(b.answer || "");
+    setEdit({ title: b.title || "", cat: b.cat || BOARD_CATS[0], content: b.content || "" });
+  };
+  const saveEdit = () => {
+    if (!sel || !edit) return;
+    if (!edit.title.trim()) { notify("제목을 입력하세요.", "err"); return; }
+    if (!edit.content.trim()) { notify("내용을 입력하세요.", "err"); return; }
+    patchBoard(sel.id, { title: edit.title.trim(), cat: edit.cat, content: edit.content.trim() });
+    notify("건의사항이 수정되었습니다.");
+  };
+  const saveAnswer = () => {
+    if (!sel) return;
+    if (!answer.trim()) { notify("답변 내용을 입력하세요.", "err"); return; }
     const updatedAt = nowDT();
-    const stored = JSON.parse(localStorage.getItem("rp3_board") || JSON.stringify(board || []));
-    const updated = stored.map((b) => b.id === id ? __spreadProps(__spreadValues({}, b), { status: "answered", answer, answeredAt: updatedAt }) : b);
-    localStorage.setItem("rp3_board", JSON.stringify(updated));
-    if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "answerBoard", id, answer, adminPw: "admin1234" }).catch(() => {});
-    setSel((p) => p ? __spreadProps(__spreadValues({}, p), { status: "answered", answer, answeredAt: updatedAt }) : p);
-    setAnswer("");
-    notify("\uB2F5\uBCC0\uC774 \uB4F1\uB85D\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+    if (patchBoard) patchBoard(sel.id, { status: "answered", answer: answer.trim(), answeredAt: updatedAt });
+    else if (GAS_URL !== 'YOUR_GAS_URL_HERE') gasCall({ action: "answerBoard", id: sel.id, answer, adminPw: "admin1234" }).catch(() => {});
+    notify("답변이 등록되었습니다.");
   };
   const removePost = (post) => {
     if (!post || !post.id) return;
-    if (!confirm("\uC120\uD0DD\uD55C \uAE00\uC744 \uC0AD\uC81C\uD558\uBA74 \uBCF5\uAD6C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.\n\uC815\uB9D0 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) return;
+    if (!confirm("선택한 건의사항을 삭제하면 복구할 수 없습니다.\n정말 삭제하시겠습니까?")) return;
     deleteBoard(post.id);
-    setSel(null);
+    setSelId(null);
+    setEdit(null);
     setAnswer("");
-    notify("\uAE00\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+    notify("건의사항이 삭제되었습니다.");
   };
-  const latestBoard = Array.isArray(board) ? board : [];
-  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: sel ? "1fr 1.1fr" : "1fr", gap: 16 } }, /* @__PURE__ */ React.createElement("div", null, latestBoard.length === 0 && /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uAC74\uC758\uC0AC\uD56D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }), latestBoard.map((b) => /* @__PURE__ */ React.createElement(
-    "div",
-    {
-      key: b.id,
-      style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: sel && sel.id === b.id ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8, cursor: "pointer" }),
-      onClick: () => {
-        setSel(b);
-        setAnswer(b.answer || "");
-      }
-    },
-    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(b.cat).color, bg: catTag(b.cat).background }, b.cat), /* @__PURE__ */ React.createElement(Tag, { color: b.status === "answered" ? "#16a34a" : "#d97706", bg: b.status === "answered" ? "#dcfce7" : "#fef3c7" }, b.status === "answered" ? "\uB2F5\uBCC0\uC644\uB8CC" : "\uB2F5\uBCC0\uB300\uAE30"), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, b.id)),
-    /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, b.title),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, maskDong(b.author.dong), "\uB3D9 ", maskHo(b.author.ho), "\uD638 ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, b.author.name), " \xB7 ", b.author.phone, " \xB7 ", fmt(b.createdAt))
-  ))), sel && /* @__PURE__ */ React.createElement("div", { style: __spreadProps(__spreadValues({}, S.adminDetail), { alignSelf: "start", position: "sticky", top: 80 }) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "\uAC74\uC758 \uC0C1\uC138"), /* @__PURE__ */ React.createElement("button", { style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#9ca3af" }, onClick: () => setSel(null) }, "\u2715")), [{ l: "\uBC88\uD638", v: sel.id }, { l: "\uBD84\uC57C", v: sel.cat }, { l: "\uC81C\uBAA9", v: sel.title }, { l: "\uC791\uC131\uC790", v: `${sel.author.dong}\uB3D9 ${sel.author.ho}\uD638 ${sel.author.name} (${sel.author.phone})` }, { l: "\uB4F1\uB85D\uC77C", v: fmt(sel.createdAt) }].map(({ l, v }) => /* @__PURE__ */ React.createElement("div", { key: l, style: S.infoRow }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af", minWidth: 60, fontSize: 13, flexShrink: 0 } }, l), /* @__PURE__ */ React.createElement("b", { style: { fontSize: 13, color: "#111827" } }, v))), /* @__PURE__ */ React.createElement("div", { style: { padding: "12px 14px", background: "#f9fafb", borderRadius: 8, fontSize: 13, color: "#374151", lineHeight: 1.7, margin: "12px 0 12px", borderLeft: "3px solid #e5e7eb" } }, sel.content), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 } }, /* @__PURE__ */ React.createElement("button", { onClick: () => removePost(sel), style: { padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, background: "#dc2626", color: "#fff" } }, "\uAE00 \uC0AD\uC81C")), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", marginBottom: 8 } }, "\u{1F4AC} \uAD00\uB9AC\uC790 \uB2F5\uBCC0"), sel.status === "answered" && sel.answer && /* @__PURE__ */ React.createElement("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#166534", lineHeight: 1.7, marginBottom: 10 } }, sel.answer), /* @__PURE__ */ React.createElement(
-    "textarea",
-    {
-      style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 80, resize: "vertical", marginBottom: 10 }),
-      placeholder: "\uB2F5\uBCC0\uC744 \uC785\uB825\uD558\uC138\uC694",
-      value: answer,
-      onChange: (e) => setAnswer(e.target.value)
-    }
-  ), /* @__PURE__ */ React.createElement(PBtn, { onClick: () => saveAnswer(sel.id) }, "\uB2F5\uBCC0 \uB4F1\uB85D"))));
+  const danger = { padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, background: "#dc2626", color: "#fff" };
+  return h("div", { style: { width: "100%" } },
+    h("div", { style: { display: "grid", gridTemplateColumns: sel ? "1fr 1.1fr" : "1fr", gap: 16 } },
+      h("div", null,
+        latestBoard.length === 0 && h(EmptyMsg, { msg: "건의사항이 없습니다." }),
+        latestBoard.map((b) => h("div", {
+          key: b.id,
+          style: Object.assign({}, S.adminRow, { borderLeft: sel && sel.id === b.id ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8, cursor: "pointer" }),
+          onClick: () => openPost(b)
+        },
+          h("div", { style: { display: "flex", gap: 8, alignItems: "center", marginBottom: 7 } },
+            h(Tag, { color: catTag(b.cat).color, bg: catTag(b.cat).background }, b.cat),
+            h(Tag, { color: b.status === "answered" ? "#16a34a" : "#d97706", bg: b.status === "answered" ? "#dcfce7" : "#fef3c7" }, b.status === "answered" ? "답변완료" : "답변대기"),
+            h("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, b.id)
+          ),
+          h("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, b.title),
+          h("div", { style: { fontSize: 12, color: "#9ca3af" } }, maskDong(b.author.dong), "동 ", maskHo(b.author.ho), "호 ", h("b", { style: { color: "#374151" } }, b.author.name), " · ", b.author.phone, " · ", fmt(b.createdAt))
+        ))
+      ),
+      sel && h("div", { style: Object.assign({}, S.adminDetail, { alignSelf: "start", position: "sticky", top: 80 }) },
+        h("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 } },
+          h("span", { style: { fontWeight: 800, fontSize: 15, color: "#111827" } }, "건의사항 수정·삭제"),
+          h("button", { style: { background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#9ca3af" }, onClick: () => setSelId(null) }, "✕")
+        ),
+        h("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 10 } }, "작성자: ", sel.author.dong, "동 ", sel.author.ho, "호 ", sel.author.name, " · ", fmt(sel.createdAt)),
+        edit && h(React.Fragment, null,
+          h(Fld, { label: "제목" }, h("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit(Object.assign({}, edit, { title: e.target.value })) })),
+          h(Fld, { label: "분야" }, h("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit(Object.assign({}, edit, { cat: e.target.value })) }, BOARD_CATS.map((c) => h("option", { key: c }, c)))),
+          h(Fld, { label: "내용" }, h("textarea", { style: Object.assign({}, S.inp, { minHeight: 110, resize: "vertical" }), value: edit.content, onChange: (e) => setEdit(Object.assign({}, edit, { content: e.target.value })) })),
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 } },
+            h(PBtn, { onClick: saveEdit, style: { width: "auto", padding: "8px 14px", fontSize: 13 } }, "글 수정 저장"),
+            h("button", { onClick: () => removePost(sel), style: danger }, "글 삭제")
+          )
+        ),
+        h("div", { style: { fontWeight: 700, fontSize: 13, color: "#111827", margin: "8px 0" } }, "💬 관리자 답변"),
+        sel.status === "answered" && sel.answer && h("div", { style: { background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "#166534", lineHeight: 1.7, marginBottom: 10, whiteSpace: "pre-wrap" } }, sel.answer),
+        h("textarea", { style: Object.assign({}, S.inp, { minHeight: 80, resize: "vertical", marginBottom: 10 }), placeholder: "답변을 입력하세요", value: answer, onChange: (e) => setAnswer(e.target.value) }),
+        h(PBtn, { onClick: saveAnswer }, "답변 등록/수정")
+      )
+    )
+  );
 }
 
-function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
-  const [sel, setSel] = useState(null);
+function AdminVotes({ vt, patchVt, deleteVt, addVt, notify, isMobile }) {
+  const h = React.createElement;
+  const [selId, setSelId] = useState(null);
+  const [edit, setEdit] = useState(null);
   const [search, setSearch] = useState("");
   const [stFlt, setStFlt] = useState("전체");
-  const [form, setForm] = useState({
-    title: "",
-    desc: "",
-    type: "찬반",
-    options: "찬성\n반대\n보류",
-    startDate: today(),
-    endDate: addD(today(), 14),
-    showResult: "always"
-  });
+  const [form, setForm] = useState({ title: "", desc: "", type: "찬반", options: "찬성\n반대\n보류", startDate: today(), endDate: addD(today(), 14), showResult: "always" });
   const list = Array.isArray(vt) ? vt : [];
-  const statusOptions = [
-    { v: "전체", l: "전체" },
-    { v: "active", l: "진행중" },
-    { v: "draft", l: "준비중" },
-    { v: "closed", l: "마감" }
-  ];
+  const selected = list.find((v) => v.id === selId) || null;
+  const statusOptions = [{ v: "전체", l: "전체" }, { v: "active", l: "진행중" }, { v: "draft", l: "준비중" }, { v: "closed", l: "마감" }];
   const filtered = list.filter((v) => {
     const sOk = stFlt === "전체" || v.status === stFlt;
     const k = search.trim();
-    const kOk = !k || (v.title || "").includes(k) || (v.desc || "").includes(k) || (v.id || "").includes(k);
-    return sOk && kOk;
+    return sOk && (!k || (v.title || "").includes(k) || (v.desc || "").includes(k) || (v.id || "").includes(k));
   });
-  const setF = (key, value) => setForm((p) => __spreadProps(__spreadValues({}, p), { [key]: value }));
+  const setF = (key, value) => setForm((p) => Object.assign({}, p, { [key]: value }));
+  const splitOptions = (txt) => String(txt || "").split(/\n|,/).map((x) => x.trim()).filter(Boolean);
+  const openVote = (v) => {
+    if (selId === v.id) { setSelId(null); setEdit(null); return; }
+    setSelId(v.id);
+    setEdit({ title: v.title || "", desc: v.desc || "", type: v.type || "찬반", options: (v.options || []).join("\n"), startDate: String(v.startDate || today()).slice(0, 10), endDate: String(v.endDate || addD(today(), 14)).slice(0, 10), status: v.status || "active", showResult: v.showResult || "always" });
+  };
   const saveNew = () => {
     const title = form.title.trim();
     const desc = form.desc.trim();
     const isText = form.type === "주관식";
-    const options = isText ? [] : form.options.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
-    if (!title) {
-      notify && notify("정책자문 제목을 입력하세요.", "err");
-      return;
-    }
-    if (!desc) {
-      notify && notify("정책자문 설명을 입력하세요.", "err");
-      return;
-    }
-    if (!isText && options.length < 2) {
-      notify && notify("선택지는 2개 이상 입력하세요.", "err");
-      return;
-    }
-    const item = {
-      id: "VOT-" + Date.now(),
-      title,
-      desc,
-      type: form.type,
-      options,
-      startDate: form.startDate || today(),
-      endDate: form.endDate || addD(today(), 14),
-      status: "active",
-      showResult: form.showResult,
-      votes: [],
-      createdAt: nowDT()
-    };
+    const options = isText ? [] : splitOptions(form.options);
+    if (!title) { notify && notify("정책자문 제목을 입력하세요.", "err"); return; }
+    if (!desc) { notify && notify("정책자문 설명을 입력하세요.", "err"); return; }
+    if (!isText && options.length < 2) { notify && notify("선택지는 2개 이상 입력하세요.", "err"); return; }
+    const item = { id: "VOT-" + Date.now(), title, desc, type: form.type, options, startDate: form.startDate || today(), endDate: form.endDate || addD(today(), 14), status: "active", showResult: form.showResult, votes: [], createdAt: nowDT() };
     addVt(item);
     setForm({ title: "", desc: "", type: "찬반", options: "찬성\n반대\n보류", startDate: today(), endDate: addD(today(), 14), showResult: "always" });
-    setSel(null);
+    setSelId(null); setEdit(null);
+  };
+  const saveEdit = () => {
+    if (!selected || !edit) return;
+    const isText = edit.type === "주관식";
+    const options = isText ? [] : splitOptions(edit.options);
+    if (!edit.title.trim()) { notify("정책자문 제목을 입력하세요.", "err"); return; }
+    if (!edit.desc.trim()) { notify("정책자문 설명을 입력하세요.", "err"); return; }
+    if (!isText && options.length < 2) { notify("선택지는 2개 이상 입력하세요.", "err"); return; }
+    patchVt(selected.id, { title: edit.title.trim(), desc: edit.desc.trim(), type: edit.type, options, startDate: edit.startDate, endDate: edit.endDate, status: edit.status, showResult: edit.showResult });
+    notify("정책자문이 수정되었습니다.");
+  };
+  const removeVote = (v) => {
+    if (!v || !v.id) return;
+    if (!confirm("선택한 정책자문을 삭제하면 참여 의견까지 모두 삭제되며 복구할 수 없습니다.\n정말 삭제하시겠습니까?")) return;
+    deleteVt(v.id);
+    setSelId(null); setEdit(null);
+    notify("정책자문이 삭제되었습니다.");
   };
   const resultRows = (v) => {
     const total = (v.votes || []).length;
     if (v.type === "주관식") {
-      if (!total) return React.createElement(EmptyMsg, { msg: "제출된 주관식 의견이 없습니다." });
-      return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, (v.votes || []).map((op, idx) => React.createElement("div", { key: idx, style: { padding: "10px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8 } },
-        React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginBottom: 5 } }, maskDong(op.dong), "동 ", maskHo(op.ho), "호 · ", maskName(op.name), " · ", fmt(op.date)),
-        React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, op.choice || "")
+      if (!total) return h(EmptyMsg, { msg: "제출된 주관식 의견이 없습니다." });
+      return h("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, (v.votes || []).map((op, idx) => h("div", { key: idx, style: { padding: "10px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8 } },
+        h("div", { style: { fontSize: 11, color: "#9ca3af", marginBottom: 5 } }, maskDong(op.dong), "동 ", maskHo(op.ho), "호 · ", maskName(op.name), " · ", fmt(op.date)),
+        h("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, op.choice || "")
       )));
     }
     return (v.options || []).map((op) => {
       const cnt = (v.votes || []).filter((x) => x.choice === op).length;
       const pct = total ? Math.round(cnt / total * 100) : 0;
-      return /* @__PURE__ */ React.createElement("div", { key: op, style: { marginTop: 8 } },
-        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4b5563", marginBottom: 3 } },
-          /* @__PURE__ */ React.createElement("span", null, op),
-          /* @__PURE__ */ React.createElement("span", null, cnt, "표 / ", pct, "%")
-        ),
-        /* @__PURE__ */ React.createElement("div", { style: { height: 7, background: "#f3f4f6", borderRadius: 99, overflow: "hidden" } },
-          /* @__PURE__ */ React.createElement("div", { style: { width: pct + "%", height: "100%", background: BLUE, borderRadius: 99 } })
-        )
+      return h("div", { key: op, style: { marginTop: 8 } },
+        h("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4b5563", marginBottom: 3 } }, h("span", null, op), h("span", null, cnt, "표 / ", pct, "%")),
+        h("div", { style: { height: 7, background: "#f3f4f6", borderRadius: 99, overflow: "hidden" } }, h("div", { style: { width: pct + "%", height: "100%", background: BLUE, borderRadius: 99 } }))
       );
     });
   };
   const renderRow = (v) => {
-    const open = sel === v.id;
+    const open = selId === v.id;
     const st = vtSt(v);
     const total = (v.votes || []).length;
     const isText = v.type === "주관식";
-    return /* @__PURE__ */ React.createElement("div", { key: v.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) },
-      /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : v.id) },
-        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } },
-          /* @__PURE__ */ React.createElement(Tag, { color: st.c, bg: st.bg }, st.t),
-          /* @__PURE__ */ React.createElement(Tag, { color: isText ? "#d97706" : "#374151", bg: isText ? "#fef3c7" : "#f3f4f6" }, v.type || "설문"),
-          /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, v.id)
-        ),
-        /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, v.title),
-        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "참여 ", total, isText ? "건" : "명", " · ", fmt(v.startDate), " ~ ", fmt(v.endDate))
+    return h("div", { key: v.id, style: Object.assign({}, S.adminRow, { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) },
+      h("div", { style: { cursor: "pointer" }, onClick: () => openVote(v) },
+        h("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, h(Tag, { color: st.c, bg: st.bg }, st.t), h(Tag, { color: isText ? "#d97706" : "#374151", bg: isText ? "#fef3c7" : "#f3f4f6" }, v.type || "설문"), h("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, v.id)),
+        h("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, v.title),
+        h("div", { style: { fontSize: 12, color: "#9ca3af" } }, "참여 ", total, isText ? "건" : "명", " · ", fmt(v.startDate), " ~ ", fmt(v.endDate))
       ),
-      open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, paddingTop: 12, borderTop: "1px dashed #e5e7eb" } },
-        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#4b5563", lineHeight: 1.6, marginBottom: 10, whiteSpace: "pre-wrap" } }, v.desc || "설명 없음"),
-        /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, resultRows(v)),
-        /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-          /* @__PURE__ */ React.createElement(GBtn, { onClick: () => patchVt(v.id, { status: "draft" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "준비중"),
-          /* @__PURE__ */ React.createElement(PBtn, { onClick: () => patchVt(v.id, { status: "active" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "진행"),
-          /* @__PURE__ */ React.createElement(GBtn, { onClick: () => patchVt(v.id, { status: "closed" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "마감")
+      open && h("div", { style: { marginTop: 12, paddingTop: 12, borderTop: "1px dashed #e5e7eb" } },
+        h("div", { style: { marginBottom: 12 } }, resultRows(v)),
+        edit && h("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, marginBottom: 10 } },
+          h(SLabel, null, "정책자문 수정"),
+          h(Fld, { label: "제목" }, h("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit(Object.assign({}, edit, { title: e.target.value })) })),
+          h(Fld, { label: "설명" }, h("textarea", { style: Object.assign({}, S.inp, { minHeight: 80, resize: "vertical" }), value: edit.desc, onChange: (e) => setEdit(Object.assign({}, edit, { desc: e.target.value })) })),
+          h("div", { className: "grid-2", style: { gap: 10 } },
+            h(Fld, { label: "유형" }, h("select", { style: S.inp, value: edit.type, onChange: (e) => setEdit(Object.assign({}, edit, { type: e.target.value })) }, ["찬반", "객관식", "설문", "주관식"].map((x) => h("option", { key: x }, x)))),
+            h(Fld, { label: "상태" }, h("select", { style: S.inp, value: edit.status, onChange: (e) => setEdit(Object.assign({}, edit, { status: e.target.value })) }, h("option", { value: "draft" }, "준비중"), h("option", { value: "active" }, "진행중"), h("option", { value: "closed" }, "마감")))
+          ),
+          h("div", { className: "grid-2", style: { gap: 10 } },
+            h(Fld, { label: "결과표시" }, h("select", { style: S.inp, value: edit.showResult, onChange: (e) => setEdit(Object.assign({}, edit, { showResult: e.target.value })) }, h("option", { value: "always" }, "상시공개"), h("option", { value: "after" }, "마감후공개"), h("option", { value: "admin" }, "관리자만"))),
+            h("div", null)
+          ),
+          edit.type === "주관식" ? h(InfoBox, { msg: "주관식은 선택지를 사용하지 않습니다." }) : h(Fld, { label: "선택지" }, h("textarea", { style: Object.assign({}, S.inp, { minHeight: 70, resize: "vertical" }), value: edit.options, onChange: (e) => setEdit(Object.assign({}, edit, { options: e.target.value })) })),
+          h("div", { className: "grid-2", style: { gap: 10 } },
+            h(Fld, { label: "시작일" }, h("input", { type: "date", style: S.inp, value: edit.startDate, onChange: (e) => setEdit(Object.assign({}, edit, { startDate: e.target.value })) })),
+            h(Fld, { label: "종료일" }, h("input", { type: "date", style: S.inp, value: edit.endDate, onChange: (e) => setEdit(Object.assign({}, edit, { endDate: e.target.value })) }))
+          ),
+          h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+            h(PBtn, { onClick: saveEdit, style: { width: "auto", padding: "8px 14px", fontSize: 13 } }, "수정 저장"),
+            h("button", { onClick: () => removeVote(v), style: { padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, background: "#dc2626", color: "#fff" } }, "삭제")
+          )
         )
       )
     );
   };
   const isTextForm = form.type === "주관식";
-  return /* @__PURE__ */ React.createElement("div", { className: "admin-split" },
-    /* @__PURE__ */ React.createElement("div", null,
-      /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } },
-        /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 220, flex: 1 }), placeholder: "🔍 검색", value: search, onChange: (e) => setSearch(e.target.value) }),
-        /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, statusOptions.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))
+  return h("div", { className: "admin-split" },
+    h("div", null,
+      h("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } },
+        h("input", { style: Object.assign({}, S.inp, { maxWidth: 220, flex: 1 }), placeholder: "🔍 검색", value: search, onChange: (e) => setSearch(e.target.value) }),
+        h("div", { className: "scroll-x" }, statusOptions.map((s) => h(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))
       ),
-      filtered.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "해당 정책자문이 없습니다." }) : filtered.map(renderRow)
+      filtered.length === 0 ? h(EmptyMsg, { msg: "해당 정책자문이 없습니다." }) : filtered.map(renderRow)
     ),
-    /* @__PURE__ */ React.createElement("div", { style: __spreadProps(__spreadValues({}, S.adminRow), { height: "fit-content" }) },
-      /* @__PURE__ */ React.createElement(SLabel, null, "정책자문 생성"),
-      /* @__PURE__ */ React.createElement(Fld, { label: "제목" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: form.title, onChange: (e) => setF("title", e.target.value), placeholder: "예) 주차장 운영방식 선호도 조사" })),
-      /* @__PURE__ */ React.createElement(Fld, { label: "설명" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 86, resize: "vertical" }), value: form.desc, onChange: (e) => setF("desc", e.target.value), placeholder: "입주민에게 보여줄 설명을 입력" })),
-      /* @__PURE__ */ React.createElement("div", { className: "grid-2", style: { gap: 10 } },
-        /* @__PURE__ */ React.createElement(Fld, { label: "유형" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: form.type, onChange: (e) => setF("type", e.target.value) },
-          /* @__PURE__ */ React.createElement("option", null, "찬반"),
-          /* @__PURE__ */ React.createElement("option", null, "객관식"),
-          /* @__PURE__ */ React.createElement("option", null, "설문"),
-          /* @__PURE__ */ React.createElement("option", null, "주관식")
-        )),
-        /* @__PURE__ */ React.createElement(Fld, { label: "결과표시" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: form.showResult, onChange: (e) => setF("showResult", e.target.value) },
-          /* @__PURE__ */ React.createElement("option", { value: "always" }, "상시공개"),
-          /* @__PURE__ */ React.createElement("option", { value: "after" }, "마감후공개"),
-          /* @__PURE__ */ React.createElement("option", { value: "admin" }, "관리자만")
-        ))
+    h("div", { style: Object.assign({}, S.adminRow, { height: "fit-content" }) },
+      h(SLabel, null, "정책자문 생성"),
+      h(Fld, { label: "제목" }, h("input", { style: S.inp, value: form.title, onChange: (e) => setF("title", e.target.value), placeholder: "예) 주차장 운영방식 선호도 조사" })),
+      h(Fld, { label: "설명" }, h("textarea", { style: Object.assign({}, S.inp, { minHeight: 86, resize: "vertical" }), value: form.desc, onChange: (e) => setF("desc", e.target.value), placeholder: "입주민에게 보여줄 설명을 입력" })),
+      h("div", { className: "grid-2", style: { gap: 10 } },
+        h(Fld, { label: "유형" }, h("select", { style: S.inp, value: form.type, onChange: (e) => setF("type", e.target.value) }, ["찬반", "객관식", "설문", "주관식"].map((x) => h("option", { key: x }, x)))),
+        h(Fld, { label: "결과표시" }, h("select", { style: S.inp, value: form.showResult, onChange: (e) => setF("showResult", e.target.value) }, h("option", { value: "always" }, "상시공개"), h("option", { value: "after" }, "마감후공개"), h("option", { value: "admin" }, "관리자만")))
       ),
-      isTextForm ? /* @__PURE__ */ React.createElement(InfoBox, { msg: "주관식 유형은 주민이 직접 문장을 작성해 제출합니다. 별도 선택지는 사용하지 않습니다." }) : /* @__PURE__ */ React.createElement(Fld, { label: "선택지(줄바꿈 또는 콤마로 구분)" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 78, resize: "vertical" }), value: form.options, onChange: (e) => setF("options", e.target.value) })),
-      /* @__PURE__ */ React.createElement("div", { className: "grid-2", style: { gap: 10 } },
-        /* @__PURE__ */ React.createElement(Fld, { label: "시작일" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: form.startDate, onChange: (e) => setF("startDate", e.target.value) })),
-        /* @__PURE__ */ React.createElement(Fld, { label: "종료일" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: form.endDate, onChange: (e) => setF("endDate", e.target.value) }))
+      isTextForm ? h(InfoBox, { msg: "주관식 유형은 주민이 직접 문장을 작성해 제출합니다. 별도 선택지는 사용하지 않습니다." }) : h(Fld, { label: "선택지(줄바꿈 또는 콤마로 구분)" }, h("textarea", { style: Object.assign({}, S.inp, { minHeight: 78, resize: "vertical" }), value: form.options, onChange: (e) => setF("options", e.target.value) })),
+      h("div", { className: "grid-2", style: { gap: 10 } },
+        h(Fld, { label: "시작일" }, h("input", { type: "date", style: S.inp, value: form.startDate, onChange: (e) => setF("startDate", e.target.value) })),
+        h(Fld, { label: "종료일" }, h("input", { type: "date", style: S.inp, value: form.endDate, onChange: (e) => setF("endDate", e.target.value) }))
       ),
-      /* @__PURE__ */ React.createElement(PBtn, { onClick: saveNew }, "정책자문 등록")
+      h(PBtn, { onClick: saveNew }, "정책자문 등록")
     )
   );
 }
+
 function AdminAgendas({ ag, patchAg, deleteAg, cfg, notify, isMobile }) {
-  const [sel, setSel] = useState(null);
+  const h = React.createElement;
+  const [selId, setSelId] = useState(null);
+  const [edit, setEdit] = useState(null);
   const [search, setSearch] = useState("");
-  const [stFlt, setStFlt] = useState("\uC804\uCCB4");
-  const stOpts = [{ v: "active", l: "\uC758\uACAC\uC218\uB834" }, { v: "declined", l: "\uBC18\uB824" }, { v: "closed", l: "\uB9C8\uAC10" }, { v: "passed", l: "\uAC00\uACB0" }, { v: "rejected", l: "\uBD80\uACB0" }];
-  const filtered = ag.filter((a) => {
-    const sOk = stFlt === "\uC804\uCCB4" || a.status === stFlt;
-    const kOk = !search || a.title.includes(search) || a.submitter.name.includes(search) || a.submitter.dong.includes(search);
+  const [stFlt, setStFlt] = useState("전체");
+  const stOpts = [{ v: "active", l: "의견수렴" }, { v: "declined", l: "반려" }, { v: "closed", l: "마감" }, { v: "passed", l: "가결" }, { v: "rejected", l: "부결" }];
+  const list = Array.isArray(ag) ? ag : [];
+  const sel = list.find((a) => a.id === selId) || null;
+  const filtered = list.filter((a) => {
+    const sOk = stFlt === "전체" || a.status === stFlt;
+    const k = search.trim();
+    const kOk = !k || (a.title || "").includes(k) || (a.desc || "").includes(k) || (a.submitter && ((a.submitter.name || "").includes(k) || (a.submitter.dong || "").includes(k))) || (a.id || "").includes(k);
     return sOk && kOk;
   });
+  const openAgenda = (a) => {
+    if (selId === a.id) { setSelId(null); setEdit(null); return; }
+    setSelId(a.id);
+    setEdit({ title: a.title || "", desc: a.desc || "", cat: a.cat || CATS[0], status: a.status || "draft", approvedAt: String(a.approvedAt || "").slice(0, 10), endDate: String(a.endDate || "").slice(0, 10) });
+  };
+  const saveEdit = () => {
+    if (!sel || !edit) return;
+    if (!edit.title.trim()) { notify("안건 제목을 입력하세요.", "err"); return; }
+    if (!edit.desc.trim()) { notify("안건 내용을 입력하세요.", "err"); return; }
+    patchAg(sel.id, { title: edit.title.trim(), desc: edit.desc.trim(), cat: edit.cat, status: edit.status, approvedAt: edit.approvedAt || "", endDate: edit.endDate || "" });
+    notify("안건이 수정되었습니다.");
+  };
   const removeAgenda = (item) => {
     if (!item || !item.id) return;
-    if (!confirm("\uC120\uD0DD\uD55C \uC548\uAC74\uC744 \uC0AD\uC81C\uD558\uBA74 \uBCF5\uAD6C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.\n\uC815\uB9D0 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?")) return;
+    if (!confirm("선택한 안건을 삭제하면 찬성 내역까지 모두 삭제되며 복구할 수 없습니다.\n정말 삭제하시겠습니까?")) return;
     deleteAg(item.id);
-    if (sel && sel.id === item.id) setSel(null);
-    notify("\uC548\uAC74\uC774 \uC0AD\uC81C\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
+    setSelId(null); setEdit(null);
+    notify("안건이 삭제되었습니다.");
   };
-  return /* @__PURE__ */ React.createElement("div", { style: { width: "100%" } }, "    ", /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } }, /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 200, flex: 1 }), placeholder: "\u{1F50D} \uAC80\uC0C9", value: search, onChange: (e) => setSearch(e.target.value) }), /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, [{ v: "\uC804\uCCB4", l: "\uC804\uCCB4" }, { v: "draft", l: "\uAC80\uD1A0\uC911" }, ...stOpts].map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))), filtered.length === 0 && /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uD574\uB2F9 \uC548\uAC74 \uC5C6\uC74C" }), filtered.map((a) => {
-    const si = agSt(a);
-    const open = sel && sel.id === a.id;
-    return /* @__PURE__ */ React.createElement("div", { key: a.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) }, /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : a) }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, /* @__PURE__ */ React.createElement(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, a.id)), /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, a.title), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\u{1F4CD} ", a.submitter.dong, "\uB3D9 ", a.submitter.ho, "\uD638 ", /* @__PURE__ */ React.createElement("b", { style: { color: "#374151" } }, a.submitter.name), " \xB7 ", a.submitter.phone), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "\u270B ", a.sigs.length, "\uBA85 \xB7 ", fmt(a.createdAt), a.endDate ? ` \xB7 ~${fmt(a.endDate)}` : "")), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() }, a.status === "draft" && /* @__PURE__ */ React.createElement(React.Fragment, null, /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#16a34a", color: "#fff", minHeight: 32 },
-        onClick: () => {
-          const approvedAt = nowDT(), endDate = addD(approvedAt, cfg.periodDays);
-          patchAg(a.id, { status: "active", approvedAt, endDate });
-          if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "active", approvedAt, endDate }));
-          notify(`\uC2B9\uC778 \uC644\uB8CC. \uB9C8\uAC10: ${fmt(endDate)}`);
-        }
-      },
-      "\u2713 \uC2B9\uC778"
-    ), /* @__PURE__ */ React.createElement(
-      "button",
-      {
-        style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#dc2626", color: "#fff", minHeight: 32 },
-        onClick: () => {
-          patchAg(a.id, { status: "declined" });
-          if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: "declined" }));
-          notify("\uBC18\uB824\uB418\uC5C8\uC2B5\uB2C8\uB2E4.");
-        }
-      },
-      "\u2717 \uBC18\uB824"
-    )), a.status !== "draft" && stOpts.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: a.status === s.v, onClick: () => {
-      patchAg(a.id, { status: s.v });
-      if (sel && sel.id === a.id) setSel((p) => __spreadProps(__spreadValues({}, p), { status: s.v }));
-    } }, s.l))), /* @__PURE__ */ React.createElement("button", { onClick: () => removeAgenda(a), style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 800, background: "#dc2626", color: "#fff", minHeight: 32 } }, "\uC0AD\uC81C"), open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } }, /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.7, marginBottom: 12, padding: "10px 12px", background: "#f9fafb", borderRadius: 8, borderLeft: "3px solid #e5e7eb" } }, a.desc), /* @__PURE__ */ React.createElement("div", { style: { display: "grid", gridTemplateColumns: "80px 1fr", gap: 4, marginBottom: 10 } }, [{ l: "\uC2B9\uC778\uC77C", v: a.approvedAt ? fmt(a.approvedAt) : "\uBBF8\uC2B9\uC778" }, { l: "\uB9C8\uAC10\uC77C", v: a.endDate ? fmt(a.endDate) : "\uBBF8\uC124\uC815" }, { l: "\uCC2C\uC131", v: `${a.sigs.length}\uBA85` }].map(({ l, v }) => /* @__PURE__ */ React.createElement(React.Fragment, { key: l }, /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "#9ca3af" } }, l), /* @__PURE__ */ React.createElement("b", { style: { fontSize: 12, color: "#111827" } }, v)))), /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", fontWeight: 600, marginBottom: 6 } }, "\uCC2C\uC131 \uC81C\uCD9C\uC790 (", a.sigs.length, "\uBA85)"), /* @__PURE__ */ React.createElement("div", { style: { maxHeight: 160, overflowY: "auto" } }, a.sigs.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uC5C6\uC74C" }) : a.sigs.map((s, i) => /* @__PURE__ */ React.createElement("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 1fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, /* @__PURE__ */ React.createElement("span", { style: { color: "#9ca3af" } }, i + 1), /* @__PURE__ */ React.createElement("span", null, s.dong, "\uB3D9 ", s.ho, "\uD638"), /* @__PURE__ */ React.createElement("span", null, s.name), /* @__PURE__ */ React.createElement("span", { style: { color: "#6b7280" } }, s.phone))))));
-  }));
+  const approve = (a) => {
+    const approvedAt = today();
+    const endDate = addD(approvedAt, cfg.periodDays);
+    patchAg(a.id, { status: "active", approvedAt, endDate });
+    if (selId === a.id) setEdit((p) => p ? Object.assign({}, p, { status: "active", approvedAt, endDate }) : p);
+    notify(`승인 완료. 마감: ${fmt(endDate)}`);
+  };
+  const statusTabs = [{ v: "전체", l: "전체" }, { v: "draft", l: "검토중" }, ...stOpts];
+  return h("div", { style: { width: "100%" } },
+    h("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } },
+      h("input", { style: Object.assign({}, S.inp, { maxWidth: 200, flex: 1 }), placeholder: "🔍 검색", value: search, onChange: (e) => setSearch(e.target.value) }),
+      h("div", { className: "scroll-x" }, statusTabs.map((s) => h(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))
+    ),
+    filtered.length === 0 && h(EmptyMsg, { msg: "해당 안건 없음" }),
+    filtered.map((a) => {
+      const si = agSt(a);
+      const open = selId === a.id;
+      return h("div", { key: a.id, style: Object.assign({}, S.adminRow, { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) },
+        h("div", { style: { cursor: "pointer" }, onClick: () => openAgenda(a) },
+          h("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } }, h(Tag, { color: catTag(a.cat).color, bg: catTag(a.cat).background }, a.cat), h(Tag, { color: si.c, bg: si.bg }, si.t), h("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, a.id)),
+          h("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, a.title),
+          h("div", { style: { fontSize: 12, color: "#9ca3af" } }, "📍 ", a.submitter.dong, "동 ", a.submitter.ho, "호 ", h("b", { style: { color: "#374151" } }, a.submitter.name), " · ", a.submitter.phone),
+          h("div", { style: { fontSize: 12, color: "#9ca3af", marginTop: 1 } }, "✋ ", (a.sigs || []).length, "명 · ", fmt(a.createdAt), a.endDate ? ` · ~${fmt(a.endDate)}` : "")
+        ),
+        h("div", { style: { display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }, onClick: (e) => e.stopPropagation() },
+          a.status === "draft" && h(PBtn, { onClick: () => approve(a), style: { width: "auto", padding: "5px 14px", minHeight: 32, fontSize: 12 } }, "✓ 승인"),
+          a.status === "draft" && h("button", { onClick: () => patchAg(a.id, { status: "declined" }), style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: "#dc2626", color: "#fff", minHeight: 32 } }, "✗ 반려"),
+          a.status !== "draft" && stOpts.map((s) => h(ABtn, { key: s.v, active: a.status === s.v, onClick: () => patchAg(a.id, { status: s.v }) }, s.l)),
+          h("button", { onClick: () => removeAgenda(a), style: { padding: "5px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 800, background: "#dc2626", color: "#fff", minHeight: 32 } }, "삭제")
+        ),
+        open && h("div", { style: { marginTop: 14, paddingTop: 14, borderTop: "1px solid #f3f4f6" } },
+          edit && h("div", { style: { background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 10, padding: 12, marginBottom: 12 } },
+            h(SLabel, null, "안건 수정"),
+            h(Fld, { label: "제목" }, h("input", { style: S.inp, value: edit.title, onChange: (e) => setEdit(Object.assign({}, edit, { title: e.target.value })) })),
+            h(Fld, { label: "분류" }, h("select", { style: S.inp, value: edit.cat, onChange: (e) => setEdit(Object.assign({}, edit, { cat: e.target.value })) }, CATS.map((c) => h("option", { key: c }, c)))),
+            h(Fld, { label: "내용" }, h("textarea", { style: Object.assign({}, S.inp, { minHeight: 100, resize: "vertical" }), value: edit.desc, onChange: (e) => setEdit(Object.assign({}, edit, { desc: e.target.value })) })),
+            h("div", { className: "grid-2", style: { gap: 10 } },
+              h(Fld, { label: "상태" }, h("select", { style: S.inp, value: edit.status, onChange: (e) => setEdit(Object.assign({}, edit, { status: e.target.value })) }, [{v:"draft",l:"검토중"}, {v:"active",l:"의견수렴"}, {v:"declined",l:"반려"}, {v:"closed",l:"마감"}, {v:"passed",l:"가결"}, {v:"rejected",l:"부결"}].map((x) => h("option", { key: x.v, value: x.v }, x.l)))),
+              h("div", null)
+            ),
+            h("div", { className: "grid-2", style: { gap: 10 } },
+              h(Fld, { label: "승인일" }, h("input", { type: "date", style: S.inp, value: edit.approvedAt, onChange: (e) => setEdit(Object.assign({}, edit, { approvedAt: e.target.value })) })),
+              h(Fld, { label: "마감일" }, h("input", { type: "date", style: S.inp, value: edit.endDate, onChange: (e) => setEdit(Object.assign({}, edit, { endDate: e.target.value })) }))
+            ),
+            h("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
+              h(PBtn, { onClick: saveEdit, style: { width: "auto", padding: "8px 14px", fontSize: 13 } }, "수정 저장"),
+              h("button", { onClick: () => removeAgenda(a), style: { padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 800, background: "#dc2626", color: "#fff" } }, "삭제")
+            )
+          ),
+          h("div", { style: { fontSize: 12, color: "#9ca3af", fontWeight: 600, marginBottom: 6 } }, "찬성 제출자 (", (a.sigs || []).length, "명)"),
+          h("div", { style: { maxHeight: 160, overflowY: "auto" } }, (a.sigs || []).length === 0 ? h(EmptyMsg, { msg: "없음" }) : (a.sigs || []).map((s, i) => h("div", { key: i, style: { display: "grid", gridTemplateColumns: "16px 1fr 0.7fr 1fr", gap: 6, padding: "5px 0", borderBottom: "1px solid #f9fafb", fontSize: 12, color: "#374151" } }, h("span", { style: { color: "#9ca3af" } }, i + 1), h("span", null, s.dong, "동 ", s.ho, "호"), h("span", null, s.name), h("span", { style: { color: "#6b7280" } }, s.phone))))
+        )
+      );
+    })
+  );
 }
 function AdminCfg({ cfg, setCfg, saveCfgToGas, notify }) {
   const [d, setD] = useState(__spreadValues({}, cfg));
