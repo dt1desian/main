@@ -1,6 +1,3 @@
-
-
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -639,9 +636,12 @@ function VoteList({ vt, nav, isMobile }) {
 }
 function VoteCard({ v, onClick }) {
   const si = vtSt(v);
-  const total = v.votes.length;
-  const tally = v.options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: v.votes.filter((x) => x.choice === o).length }), {});
-  const showBar = v.showResult === "always" && total > 0;
+  const total = (v.votes || []).length;
+  const options = Array.isArray(v.options) ? v.options : [];
+  const isText = v.type === "주관식";
+  const tally = options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: (v.votes || []).filter((x) => x.choice === o).length }), {});
+  const showBar = !isText && v.showResult === "always" && total > 0;
+  const typeColor = v.type === "찬반" ? { c: "#16a34a", bg: "#dcfce7" } : isText ? { c: "#d97706", bg: "#fef3c7" } : { c: "#7c3aed", bg: "#f5f3ff" };
   return /* @__PURE__ */ React.createElement(
     "div",
     {
@@ -649,14 +649,15 @@ function VoteCard({ v, onClick }) {
       onClick,
       style: { background: "#fff", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb", cursor: "pointer", boxShadow: "0 1px 4px rgba(0,0,0,.05)" }
     },
-    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement(Tag, { color: v.type === "\uCC2C\uBC18" ? "#16a34a" : "#7c3aed", bg: v.type === "\uCC2C\uBC18" ? "#dcfce7" : "#f5f3ff" }, v.type), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, total, "\uBA85")),
+    /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, marginBottom: 10, alignItems: "center" } }, /* @__PURE__ */ React.createElement(Tag, { color: typeColor.c, bg: typeColor.bg }, v.type || "설문"), /* @__PURE__ */ React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, total, isText ? "건" : "명")),
     /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 15, color: "#111827", marginBottom: 5, lineHeight: 1.4 } }, v.title),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6b7280", lineHeight: 1.5, marginBottom: 12 } }, v.desc.slice(0, 60), "\u2026"),
-    showBar && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10 } }, v.options.map((o) => {
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#6b7280", lineHeight: 1.5, marginBottom: 12 } }, (v.desc || "").slice(0, 60), (v.desc || "").length > 60 ? "…" : ""),
+    isText && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10, padding: "9px 10px", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, fontSize: 12, color: "#92400e", lineHeight: 1.5 } }, "주민이 직접 의견을 작성해 제출하는 주관식 자문입니다."),
+    showBar && /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 10 } }, options.map((o) => {
       const cnt = tally[o] || 0, pct = total > 0 ? Math.round(cnt / total * 100) : 0;
       return /* @__PURE__ */ React.createElement("div", { key: o, style: { marginBottom: 6 } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#374151", marginBottom: 2 } }, /* @__PURE__ */ React.createElement("span", null, o), /* @__PURE__ */ React.createElement("span", { style: { fontWeight: 600 } }, pct, "%")), /* @__PURE__ */ React.createElement("div", { style: { height: 4, background: "#f3f4f6", borderRadius: 2, overflow: "hidden" } }, /* @__PURE__ */ React.createElement("div", { style: { height: "100%", width: `${pct}%`, background: BLUE, borderRadius: 2 } })));
     })),
-    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", borderTop: "1px solid #f3f4f6", paddingTop: 8 } }, "\uB9C8\uAC10 ", fmt(v.endDate))
+    /* @__PURE__ */ React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", borderTop: "1px solid #f3f4f6", paddingTop: 8 } }, "마감 ", fmt(v.endDate))
   );
 }
 function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isMobile }) {
@@ -671,10 +672,14 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
   const [editChoice, setEditChoice] = useState("");
   const si = vtSt(vt);
   const ok = canVote(vt);
-  const total = vt.votes.length;
-  const tally = vt.options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: vt.votes.filter((x) => x.choice === o).length }), {});
+  const votes = vt.votes || [];
+  const options = Array.isArray(vt.options) ? vt.options : [];
+  const isText = vt.type === "주관식";
+  const total = votes.length;
+  const tally = options.reduce((a, o) => __spreadProps(__spreadValues({}, a), { [o]: votes.filter((x) => x.choice === o).length }), {});
   const showRes = vt.showResult === "always" || vt.showResult === "after" && !ok;
   const maxCnt = Math.max(...Object.values(tally), 1);
+  const typeColor = vt.type === "찬반" ? { c: "#16a34a", bg: "#dcfce7" } : isText ? { c: "#d97706", bg: "#fef3c7" } : { c: "#7c3aed", bg: "#f5f3ff" };
   const runVerify = async () => {
     const msg = validatePersonText(auth);
     if (msg) { setVerifyErr(msg); return; }
@@ -682,7 +687,7 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
     const memberOk = await verifyMember(auth.dong, auth.ho, auth.name);
     setVerifying(false);
     if (!memberOk) { setVerifyErr("입주민 정보가 일치하지 않습니다."); return; }
-    const found = (vt.votes || []).find((x) => sameOwner(x, auth));
+    const found = votes.find((x) => sameOwner(x, auth));
     if (!found) { setVerifyErr("제출된 정책자문 의견 정보와 일치하지 않습니다."); return; }
     setVerifiedVote(found);
     setEditChoice(found.choice || "");
@@ -690,8 +695,8 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
   };
   const saveVote = () => {
     if (!ok) { notify("완료된 정책자문은 수정할 수 없습니다.", "err"); return; }
-    if (!editChoice) { notify("의견 항목을 선택해 주세요.", "err"); return; }
-    const patch = { choice: editChoice, date: nowDT() };
+    if (!String(editChoice || "").trim()) { notify(isText ? "주관식 의견을 입력해 주세요." : "의견 항목을 선택해 주세요.", "err"); return; }
+    const patch = { choice: String(editChoice).trim(), date: nowDT() };
     onPatchVote(vt.id, auth, patch);
     setVerifiedVote(__spreadProps(__spreadValues({}, verifiedVote), patch));
     notify("정책자문 의견이 수정되었습니다.");
@@ -713,9 +718,11 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
     verifyErr && React.createElement("div", { style: { color: "#dc2626", fontSize: 12, marginBottom: 8, fontWeight: 600 } }, verifyErr),
     React.createElement(PBtn, { onClick: runVerify }, verifying ? "확인 중..." : "제출 정보 확인")
   );
-  const voteOptionPicker = React.createElement(Fld, { label: "의견 선택" },
+  const voteOptionPicker = isText ? React.createElement(Fld, { label: "주관식 의견" },
+    React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 120, resize: "vertical", lineHeight: 1.6 }), placeholder: "제출한 의견을 수정해 주세요.", value: editChoice, onChange: (e) => setEditChoice(e.target.value) })
+  ) : React.createElement(Fld, { label: "의견 선택" },
     React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } },
-      vt.options.map((o) => React.createElement("label", { key: o, onClick: () => setEditChoice(o), style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1.5px solid ${editChoice === o ? BLUE : "#e5e7eb"}`, background: editChoice === o ? LBLUE : "#fff", cursor: "pointer", fontWeight: editChoice === o ? 700 : 400, color: editChoice === o ? BLUE : "#374151" } },
+      options.map((o) => React.createElement("label", { key: o, onClick: () => setEditChoice(o), style: { display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", borderRadius: 8, border: `1.5px solid ${editChoice === o ? BLUE : "#e5e7eb"}`, background: editChoice === o ? LBLUE : "#fff", cursor: "pointer", fontWeight: editChoice === o ? 700 : 400, color: editChoice === o ? BLUE : "#374151" } },
         React.createElement("div", { style: { width: 16, height: 16, borderRadius: "50%", border: `2px solid ${editChoice === o ? BLUE : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, editChoice === o && React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: BLUE } })),
         o
       ))
@@ -732,8 +739,11 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
     !verifiedVote ? voteVerifyForm : voteEditForm
   );
   const resultBox = showRes && total > 0 && React.createElement("div", { style: { marginBottom: 24 } },
-    React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, "집계 결과"),
-    vt.options.map((o) => {
+    React.createElement("div", { style: { fontWeight: 700, color: "#111827", fontSize: 14, marginBottom: 14 } }, isText ? "제출된 주관식 의견" : "집계 결과"),
+    isText ? React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, votes.map((v, idx) => React.createElement("div", { key: idx, style: { padding: "12px 14px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8 } },
+      React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginBottom: 6 } }, maskDong(v.dong), "동 ", maskHo(v.ho), "호 · ", maskName(v.name), " · ", fmt(v.date)),
+      React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" } }, v.choice)
+    ))) : options.map((o) => {
       const cnt = tally[o] || 0, pct = total > 0 ? Math.round(cnt / total * 100) : 0;
       const isTop = cnt === maxCnt && cnt > 0;
       return React.createElement("div", { key: o, style: { marginBottom: 10, padding: "11px 14px", background: isTop ? LBLUE : "#f9fafb", borderRadius: 8, border: `1px solid ${isTop ? "#bfdbfe" : "#e5e7eb"}` } },
@@ -749,13 +759,13 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
     React.createElement(BackBtn, { onClick: onBack }),
     showP && React.createElement(PrivacyModal, { purpose: "정책자문 참여", onOk: () => { setShowP(false); setShowF(true); }, onCancel: () => setShowP(false) }),
     React.createElement("div", { className: "detail-pad", style: { background: "#fff", borderRadius: 12, border: "1px solid #e5e7eb", boxShadow: "0 1px 8px rgba(0,0,0,.06)" } },
-      React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, React.createElement(Tag, { color: vt.type === "찬반" ? "#16a34a" : "#7c3aed", bg: vt.type === "찬반" ? "#dcfce7" : "#f5f3ff" }, vt.type), React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, vt.id)),
+      React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 14 } }, React.createElement(Tag, { color: typeColor.c, bg: typeColor.bg }, vt.type || "설문"), React.createElement(Tag, { color: si.c, bg: si.bg }, si.t), React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, vt.id)),
       React.createElement("h2", { style: { fontSize: isMobile ? 18 : 22, fontWeight: 800, color: "#111827", marginBottom: 8, letterSpacing: "-0.3px" } }, vt.title),
-      React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18 } }, "📅 ", fmt(vt.startDate), " ~ ", fmt(vt.endDate), " · ✋ ", total, "명 참여"),
+      React.createElement("div", { style: { fontSize: 12, color: "#9ca3af", marginBottom: 18 } }, "📅 ", fmt(vt.startDate), " ~ ", fmt(vt.endDate), " · ✋ ", total, isText ? "건 제출" : "명 참여"),
       React.createElement("p", { style: { fontSize: 14, color: "#374151", lineHeight: 1.8, marginBottom: 24, padding: "14px 16px", background: "#f9fafb", borderRadius: 8, borderLeft: `3px solid ${BLUE}` } }, vt.desc),
       resultBox,
       vt.showResult === "after" && ok && React.createElement(InfoBox, { msg: "정책자문 결과는 의견수렴 기간 종료 후 공개됩니다." }),
-      ok && !showF && !done && React.createElement(PBtn, { onClick: () => setShowP(true) }, "의견 선택하기 →"),
+      ok && !showF && !done && React.createElement(PBtn, { onClick: () => setShowP(true) }, isText ? "주관식 의견 작성하기 →" : "의견 선택하기 →"),
       done && React.createElement(SuccessBox, { msg: "의견이 정상적으로 제출되었습니다. 감사합니다." }),
       !ok && vt.status === "active" && React.createElement(WarnBox, { msg: "의견수렴 기간이 종료되었습니다." }),
       showF && React.createElement(VoteForm, { vt, onSubmit: (e) => { onVote(vt.id, e); setShowF(false); setDone(true); notify("의견이 제출되었습니다."); }, onCancel: () => setShowF(false), notify, isMobile }),
@@ -766,29 +776,32 @@ function VoteDetail({ vt, onBack, onVote, onPatchVote, onDeleteVote, notify, isM
 function VoteForm({ vt, onSubmit, onCancel, notify, isMobile }) {
   const [f, setF] = useState({ dong: "", ho: "", name: "", phone: "", choice: "" });
   const [verifying, setVerifying] = useState(false);
+  const isText = vt.type === "주관식";
+  const options = Array.isArray(vt.options) ? vt.options : [];
   const submit = async () => {
-    if (!f.dong || !f.ho || !f.name) {
-      notify("\uB3D9\uD638\uC218\uC640 \uC774\uB984\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.", "err");
+    const msg = validatePersonText(f);
+    if (msg) {
+      notify(msg, "err");
       return;
     }
-    if (!f.choice) {
-      notify("\uC758\uACAC \uD56D\uBAA9\uC744 \uC120\uD0DD\uD574\uC8FC\uC138\uC694.", "err");
+    if (!String(f.choice || "").trim()) {
+      notify(isText ? "주관식 의견을 입력해 주세요." : "의견 항목을 선택해 주세요.", "err");
       return;
     }
-    if (vt.votes.find((v) => v.dong === f.dong && v.ho === f.ho)) {
-      notify("\uC774\uBBF8 \uC758\uACAC\uC744 \uC81C\uCD9C\uD55C \uC138\uB300\uC785\uB2C8\uB2E4.", "err");
+    if ((vt.votes || []).find((v) => v.dong === f.dong && v.ho === f.ho)) {
+      notify("이미 의견을 제출한 세대입니다. 수정이 필요하면 '내가 제출한 의견 수정·삭제'를 이용해 주세요.", "err");
       return;
     }
     setVerifying(true);
     const ok = await verifyMember(f.dong, f.ho, f.name);
     setVerifying(false);
     if (!ok) {
-      notify("\uC785\uC8FC\uBBFC \uC815\uBCF4\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. \uB3D9\xB7\uD638\uC218\xB7\uC774\uB984\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.", "err");
+      notify("입주민 정보가 일치하지 않습니다. 동·호수·이름을 확인해 주세요.", "err");
       return;
     }
-    onSubmit({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), choice: f.choice, date: nowDT() });
+    onSubmit({ dong: f.dong, ho: f.ho, name: f.name, phone: maskPh(f.phone || ""), choice: String(f.choice).trim(), date: nowDT() });
   };
-  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "\uB3D9\uD638\uC218 \uC778\uC99D \uD6C4 \uC758\uACAC \uC81C\uCD9C"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uB3D9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 101", value: f.dong, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC608: 1502", value: f.ho, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: e.target.value })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Fld, { label: "\uC774\uB984" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "\uC2E4\uBA85", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: e.target.value })) })), /* @__PURE__ */ React.createElement(Fld, { label: "\uC804\uD654\uBC88\uD638" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (\uC120\uD0DD)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), /* @__PURE__ */ React.createElement(Fld, { label: "\uC758\uACAC \uC120\uD0DD" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 } }, vt.options.map((o) => /* @__PURE__ */ React.createElement(
+  return /* @__PURE__ */ React.createElement("div", { style: { marginTop: 18, background: "#f9fafb", borderRadius: 10, padding: "18px", border: "1px solid #e5e7eb" } }, /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, color: "#111827", marginBottom: 14, fontSize: 14 } }, "동호수 인증 후 의견 제출"), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 10 } }, /* @__PURE__ */ React.createElement(Fld, { label: "동" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "예: 101", value: f.dong, maxLength: 3, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { dong: onlyDigits(e.target.value, 3) })) })), /* @__PURE__ */ React.createElement(Fld, { label: "호" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "예: 1502", value: f.ho, maxLength: 4, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { ho: onlyDigits(e.target.value, 4) })) }))), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 16 } }, /* @__PURE__ */ React.createElement(Fld, { label: "이름" }, "    ", /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "실명", value: f.name, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { name: onlyNameText(e.target.value) })) })), /* @__PURE__ */ React.createElement(Fld, { label: "전화번호" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, placeholder: "010-0000-0000 (선택)", value: f.phone, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { phone: e.target.value })) }))), isText ? /* @__PURE__ */ React.createElement(Fld, { label: "주관식 의견" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 130, resize: "vertical", lineHeight: 1.6 }), placeholder: "의견을 자유롭게 입력해 주세요.", value: f.choice, onChange: (e) => setF((p) => __spreadProps(__spreadValues({}, p), { choice: e.target.value })) })) : /* @__PURE__ */ React.createElement(Fld, { label: "의견 선택" }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8, marginTop: 4 } }, options.map((o) => /* @__PURE__ */ React.createElement(
     "label",
     {
       key: o,
@@ -809,7 +822,7 @@ function VoteForm({ vt, onSubmit, onCancel, notify, isMobile }) {
     },
     /* @__PURE__ */ React.createElement("div", { style: { width: 16, height: 16, borderRadius: "50%", border: `2px solid ${f.choice === o ? BLUE : "#d1d5db"}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 } }, f.choice === o && /* @__PURE__ */ React.createElement("div", { style: { width: 7, height: 7, borderRadius: "50%", background: BLUE } })),
     o
-  )))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 16 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "\uC778\uC99D\uC911..." : "\uC81C\uCD9C\uD558\uAE30"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "\uCDE8\uC18C")));
+  )))), /* @__PURE__ */ React.createElement("div", { className: "btn-row-mobile", style: { display: "flex", gap: 8, marginTop: 16 } }, /* @__PURE__ */ React.createElement(PBtn, { onClick: submit }, verifying ? "인증중..." : "제출하기"), /* @__PURE__ */ React.createElement(GBtn, { onClick: onCancel }, "취소")));
 }
 function AgendaList({ ag, cfg, nav, isMobile }) {
   const [cat, setCat] = useState("\uC804\uCCB4");
@@ -1221,25 +1234,25 @@ function AdminBoard({ board, deleteBoard, notify }) {
 function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
   const [sel, setSel] = useState(null);
   const [search, setSearch] = useState("");
-  const [stFlt, setStFlt] = useState("\uC804\uCCB4");
+  const [stFlt, setStFlt] = useState("전체");
   const [form, setForm] = useState({
     title: "",
     desc: "",
-    type: "\uCC2C\uBC18",
-    options: "\uCC2C\uC131\n\uBC18\uB300\n\uBCF4\uB958",
+    type: "찬반",
+    options: "찬성\n반대\n보류",
     startDate: today(),
     endDate: addD(today(), 14),
     showResult: "always"
   });
   const list = Array.isArray(vt) ? vt : [];
   const statusOptions = [
-    { v: "\uC804\uCCB4", l: "\uC804\uCCB4" },
-    { v: "active", l: "\uC9C4\uD589\uC911" },
-    { v: "draft", l: "\uC900\uBE44\uC911" },
-    { v: "closed", l: "\uB9C8\uAC10" }
+    { v: "전체", l: "전체" },
+    { v: "active", l: "진행중" },
+    { v: "draft", l: "준비중" },
+    { v: "closed", l: "마감" }
   ];
   const filtered = list.filter((v) => {
-    const sOk = stFlt === "\uC804\uCCB4" || v.status === stFlt;
+    const sOk = stFlt === "전체" || v.status === stFlt;
     const k = search.trim();
     const kOk = !k || (v.title || "").includes(k) || (v.desc || "").includes(k) || (v.id || "").includes(k);
     return sOk && kOk;
@@ -1248,13 +1261,18 @@ function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
   const saveNew = () => {
     const title = form.title.trim();
     const desc = form.desc.trim();
-    const options = form.options.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
+    const isText = form.type === "주관식";
+    const options = isText ? [] : form.options.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
     if (!title) {
-      notify && notify("\uC815\uCC45\uC790\uBB38 \uC81C\uBAA9\uC744 \uC785\uB825\uD558\uC138\uC694.", "err");
+      notify && notify("정책자문 제목을 입력하세요.", "err");
       return;
     }
-    if (options.length < 2) {
-      notify && notify("\uC120\uD0DD\uC9C0\uB294 2\uAC1C \uC774\uC0C1 \uC785\uB825\uD558\uC138\uC694.", "err");
+    if (!desc) {
+      notify && notify("정책자문 설명을 입력하세요.", "err");
+      return;
+    }
+    if (!isText && options.length < 2) {
+      notify && notify("선택지는 2개 이상 입력하세요.", "err");
       return;
     }
     const item = {
@@ -1271,18 +1289,25 @@ function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
       createdAt: nowDT()
     };
     addVt(item);
-    setForm({ title: "", desc: "", type: "\uCC2C\uBC18", options: "\uCC2C\uC131\n\uBC18\uB300\n\uBCF4\uB958", startDate: today(), endDate: addD(today(), 14), showResult: "always" });
+    setForm({ title: "", desc: "", type: "찬반", options: "찬성\n반대\n보류", startDate: today(), endDate: addD(today(), 14), showResult: "always" });
     setSel(null);
   };
   const resultRows = (v) => {
     const total = (v.votes || []).length;
+    if (v.type === "주관식") {
+      if (!total) return React.createElement(EmptyMsg, { msg: "제출된 주관식 의견이 없습니다." });
+      return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: 8 } }, (v.votes || []).map((op, idx) => React.createElement("div", { key: idx, style: { padding: "10px 12px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: 8 } },
+        React.createElement("div", { style: { fontSize: 11, color: "#9ca3af", marginBottom: 5 } }, maskDong(op.dong), "동 ", maskHo(op.ho), "호 · ", maskName(op.name), " · ", fmt(op.date)),
+        React.createElement("div", { style: { fontSize: 13, color: "#374151", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, op.choice || "")
+      )));
+    }
     return (v.options || []).map((op) => {
       const cnt = (v.votes || []).filter((x) => x.choice === op).length;
       const pct = total ? Math.round(cnt / total * 100) : 0;
       return /* @__PURE__ */ React.createElement("div", { key: op, style: { marginTop: 8 } },
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", justifyContent: "space-between", fontSize: 12, color: "#4b5563", marginBottom: 3 } },
           /* @__PURE__ */ React.createElement("span", null, op),
-          /* @__PURE__ */ React.createElement("span", null, cnt, "\uD45C / ", pct, "%")
+          /* @__PURE__ */ React.createElement("span", null, cnt, "표 / ", pct, "%")
         ),
         /* @__PURE__ */ React.createElement("div", { style: { height: 7, background: "#f3f4f6", borderRadius: 99, overflow: "hidden" } },
           /* @__PURE__ */ React.createElement("div", { style: { width: pct + "%", height: "100%", background: BLUE, borderRadius: 99 } })
@@ -1294,61 +1319,63 @@ function AdminVotes({ vt, patchVt, addVt, notify, isMobile }) {
     const open = sel === v.id;
     const st = vtSt(v);
     const total = (v.votes || []).length;
+    const isText = v.type === "주관식";
     return /* @__PURE__ */ React.createElement("div", { key: v.id, style: __spreadProps(__spreadValues({}, S.adminRow), { borderLeft: open ? `3px solid ${BLUE}` : "3px solid transparent", marginBottom: 8 }) },
       /* @__PURE__ */ React.createElement("div", { style: { cursor: "pointer" }, onClick: () => setSel(open ? null : v.id) },
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 6, alignItems: "center", marginBottom: 7 } },
           /* @__PURE__ */ React.createElement(Tag, { color: st.c, bg: st.bg }, st.t),
-          /* @__PURE__ */ React.createElement(Tag, { color: "#374151", bg: "#f3f4f6" }, v.type || "\uC124\uBB38"),
+          /* @__PURE__ */ React.createElement(Tag, { color: isText ? "#d97706" : "#374151", bg: isText ? "#fef3c7" : "#f3f4f6" }, v.type || "설문"),
           /* @__PURE__ */ React.createElement("span", { style: { marginLeft: "auto", fontSize: 11, color: "#9ca3af" } }, v.id)
         ),
         /* @__PURE__ */ React.createElement("div", { style: { fontWeight: 700, fontSize: 14, color: "#111827", marginBottom: 3 } }, v.title),
-        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "\uCC38\uC5EC ", total, "\uBA85 \xB7 ", fmt(v.startDate), " ~ ", fmt(v.endDate))
+        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 12, color: "#9ca3af" } }, "참여 ", total, isText ? "건" : "명", " · ", fmt(v.startDate), " ~ ", fmt(v.endDate))
       ),
       open && /* @__PURE__ */ React.createElement("div", { style: { marginTop: 12, paddingTop: 12, borderTop: "1px dashed #e5e7eb" } },
-        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#4b5563", lineHeight: 1.6, marginBottom: 10, whiteSpace: "pre-wrap" } }, v.desc || "\uC124\uBA85 \uC5C6\uC74C"),
+        /* @__PURE__ */ React.createElement("div", { style: { fontSize: 13, color: "#4b5563", lineHeight: 1.6, marginBottom: 10, whiteSpace: "pre-wrap" } }, v.desc || "설명 없음"),
         /* @__PURE__ */ React.createElement("div", { style: { marginBottom: 12 } }, resultRows(v)),
         /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } },
-          /* @__PURE__ */ React.createElement(GBtn, { onClick: () => patchVt(v.id, { status: "draft" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "\uC900\uBE44\uC911"),
-          /* @__PURE__ */ React.createElement(PBtn, { onClick: () => patchVt(v.id, { status: "active" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "\uC9C4\uD589"),
-          /* @__PURE__ */ React.createElement(GBtn, { onClick: () => patchVt(v.id, { status: "closed" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "\uB9C8\uAC10")
+          /* @__PURE__ */ React.createElement(GBtn, { onClick: () => patchVt(v.id, { status: "draft" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "준비중"),
+          /* @__PURE__ */ React.createElement(PBtn, { onClick: () => patchVt(v.id, { status: "active" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "진행"),
+          /* @__PURE__ */ React.createElement(GBtn, { onClick: () => patchVt(v.id, { status: "closed" }), style: { width: "auto", padding: "7px 12px", minHeight: 34, fontSize: 12 } }, "마감")
         )
       )
     );
   };
+  const isTextForm = form.type === "주관식";
   return /* @__PURE__ */ React.createElement("div", { className: "admin-split" },
     /* @__PURE__ */ React.createElement("div", null,
       /* @__PURE__ */ React.createElement("div", { style: { display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" } },
-        /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 220, flex: 1 }), placeholder: "\uD83D\uDD0D \uAC80\uC0C9", value: search, onChange: (e) => setSearch(e.target.value) }),
+        /* @__PURE__ */ React.createElement("input", { style: __spreadProps(__spreadValues({}, S.inp), { maxWidth: 220, flex: 1 }), placeholder: "🔍 검색", value: search, onChange: (e) => setSearch(e.target.value) }),
         /* @__PURE__ */ React.createElement("div", { className: "scroll-x" }, statusOptions.map((s) => /* @__PURE__ */ React.createElement(ABtn, { key: s.v, active: stFlt === s.v, onClick: () => setStFlt(s.v) }, s.l)))
       ),
-      filtered.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "\uD574\uB2F9 \uC815\uCC45\uC790\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4." }) : filtered.map(renderRow)
+      filtered.length === 0 ? /* @__PURE__ */ React.createElement(EmptyMsg, { msg: "해당 정책자문이 없습니다." }) : filtered.map(renderRow)
     ),
     /* @__PURE__ */ React.createElement("div", { style: __spreadProps(__spreadValues({}, S.adminRow), { height: "fit-content" }) },
-      /* @__PURE__ */ React.createElement(SLabel, null, "\uC815\uCC45\uC790\uBB38 \uC0DD\uC131"),
-      /* @__PURE__ */ React.createElement(Fld, { label: "\uC81C\uBAA9" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: form.title, onChange: (e) => setF("title", e.target.value), placeholder: "\uC608) \uC8FC\uCC28\uC7A5 \uC6B4\uC601\uBC29\uC2DD \uC120\uD638\uB3C4 \uC870\uC0AC" })),
-      /* @__PURE__ */ React.createElement(Fld, { label: "\uC124\uBA85" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 86, resize: "vertical" }), value: form.desc, onChange: (e) => setF("desc", e.target.value), placeholder: "\uC785\uC8FC\uBBFC\uC5D0\uAC8C \uBCF4\uC5EC\uC904 \uC124\uBA85\uC744 \uC785\uB825" })),
+      /* @__PURE__ */ React.createElement(SLabel, null, "정책자문 생성"),
+      /* @__PURE__ */ React.createElement(Fld, { label: "제목" }, /* @__PURE__ */ React.createElement("input", { style: S.inp, value: form.title, onChange: (e) => setF("title", e.target.value), placeholder: "예) 주차장 운영방식 선호도 조사" })),
+      /* @__PURE__ */ React.createElement(Fld, { label: "설명" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 86, resize: "vertical" }), value: form.desc, onChange: (e) => setF("desc", e.target.value), placeholder: "입주민에게 보여줄 설명을 입력" })),
       /* @__PURE__ */ React.createElement("div", { className: "grid-2", style: { gap: 10 } },
-        /* @__PURE__ */ React.createElement(Fld, { label: "\uC720\uD615" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: form.type, onChange: (e) => setF("type", e.target.value) },
-          /* @__PURE__ */ React.createElement("option", null, "\uCC2C\uBC18"),
-          /* @__PURE__ */ React.createElement("option", null, "\uAC1D\uAD00\uC2DD"),
-          /* @__PURE__ */ React.createElement("option", null, "\uC124\uBB38")
+        /* @__PURE__ */ React.createElement(Fld, { label: "유형" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: form.type, onChange: (e) => setF("type", e.target.value) },
+          /* @__PURE__ */ React.createElement("option", null, "찬반"),
+          /* @__PURE__ */ React.createElement("option", null, "객관식"),
+          /* @__PURE__ */ React.createElement("option", null, "설문"),
+          /* @__PURE__ */ React.createElement("option", null, "주관식")
         )),
-        /* @__PURE__ */ React.createElement(Fld, { label: "\uACB0\uACFC\uD45C\uC2DC" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: form.showResult, onChange: (e) => setF("showResult", e.target.value) },
-          /* @__PURE__ */ React.createElement("option", { value: "always" }, "\uC0C1\uC2DC\uACF5\uAC1C"),
-          /* @__PURE__ */ React.createElement("option", { value: "after" }, "\uB9C8\uAC10\uD6C4\uACF5\uAC1C"),
-          /* @__PURE__ */ React.createElement("option", { value: "admin" }, "\uAD00\uB9AC\uC790\uB9CC")
+        /* @__PURE__ */ React.createElement(Fld, { label: "결과표시" }, /* @__PURE__ */ React.createElement("select", { style: S.inp, value: form.showResult, onChange: (e) => setF("showResult", e.target.value) },
+          /* @__PURE__ */ React.createElement("option", { value: "always" }, "상시공개"),
+          /* @__PURE__ */ React.createElement("option", { value: "after" }, "마감후공개"),
+          /* @__PURE__ */ React.createElement("option", { value: "admin" }, "관리자만")
         ))
       ),
-      /* @__PURE__ */ React.createElement(Fld, { label: "\uC120\uD0DD\uC9C0(\uC904\uBC14\uAFC8 \uB610\uB294 \uCF64\uB9C8\uB85C \uAD6C\uBD84)" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 78, resize: "vertical" }), value: form.options, onChange: (e) => setF("options", e.target.value) })),
+      isTextForm ? /* @__PURE__ */ React.createElement(InfoBox, { msg: "주관식 유형은 주민이 직접 문장을 작성해 제출합니다. 별도 선택지는 사용하지 않습니다." }) : /* @__PURE__ */ React.createElement(Fld, { label: "선택지(줄바꿈 또는 콤마로 구분)" }, /* @__PURE__ */ React.createElement("textarea", { style: __spreadProps(__spreadValues({}, S.inp), { minHeight: 78, resize: "vertical" }), value: form.options, onChange: (e) => setF("options", e.target.value) })),
       /* @__PURE__ */ React.createElement("div", { className: "grid-2", style: { gap: 10 } },
-        /* @__PURE__ */ React.createElement(Fld, { label: "\uC2DC\uC791\uC77C" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: form.startDate, onChange: (e) => setF("startDate", e.target.value) })),
-        /* @__PURE__ */ React.createElement(Fld, { label: "\uC885\uB8CC\uC77C" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: form.endDate, onChange: (e) => setF("endDate", e.target.value) }))
+        /* @__PURE__ */ React.createElement(Fld, { label: "시작일" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: form.startDate, onChange: (e) => setF("startDate", e.target.value) })),
+        /* @__PURE__ */ React.createElement(Fld, { label: "종료일" }, /* @__PURE__ */ React.createElement("input", { type: "date", style: S.inp, value: form.endDate, onChange: (e) => setF("endDate", e.target.value) }))
       ),
-      /* @__PURE__ */ React.createElement(PBtn, { onClick: saveNew }, "\uC815\uCC45\uC790\uBB38 \uB4F1\uB85D")
+      /* @__PURE__ */ React.createElement(PBtn, { onClick: saveNew }, "정책자문 등록")
     )
   );
 }
-
 function AdminAgendas({ ag, patchAg, deleteAg, cfg, notify, isMobile }) {
   const [sel, setSel] = useState(null);
   const [search, setSearch] = useState("");
