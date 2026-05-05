@@ -585,7 +585,7 @@ function PrivacyOpsDetailModal({ isMobile, onClose }) {
       /* @__PURE__ */ React.createElement("button", { type: "button", onClick: onClose, style: { border: "none", background: "#f8fafc", borderRadius: 8, padding: "7px 10px", cursor: "pointer", color: "#475569", fontWeight: 800 } }, "닫기")
     ),
     /* @__PURE__ */ React.createElement("div", { style: { padding: isMobile ? "12px 18px 18px" : "14px 24px 22px" } },
-      row("1. 본인 확인", "입력한 동·호수·이름은 입주민 여부 확인과 중복·무분별한 참여 방지를 위해 사용합니다."),
+      row("1. 본인 확인", "입력한 동·호수·이름은 관리사무소에 등록된 입주자 정보와 대조하여 본인 확인과 중복·무분별한 참여 방지를 위해 사용합니다."),
       row("2. 공개 화면 보호", "안건, 정책자문, 건의사항 화면에서는 작성자 정보가 마스킹되어 표시됩니다."),
       row("3. 입주민 정보 관리", "입주민 기본 명단은 관리사무소 등록 정보를 기준으로 확인하며, 플랫폼에는 이용자가 직접 동의하고 입력·작성한 정보만 저장합니다."),
       row("4. 관리자 접근 제한", "원본 정보와 전체 글은 지정된 관리자만 확인·수정·삭제할 수 있도록 운영합니다."),
@@ -1073,7 +1073,7 @@ function PrivacyModal({ purpose, onOk, onCancel, inline }) {
           ),
           /* @__PURE__ */ React.createElement("tr", null,
             /* @__PURE__ */ React.createElement("th", { style: headS }, "이용 목적"),
-            /* @__PURE__ */ React.createElement("td", { style: rowS }, purposeText, " 본인 확인, 중복·부정 이용 방지, 접수·처리 이력 관리")
+            /* @__PURE__ */ React.createElement("td", { style: rowS }, purposeText, " 본인 확인(관리사무소 등록 입주자 정보와 대조), 중복·부정 이용 방지, 접수·처리 이력 관리")
           ),
           /* @__PURE__ */ React.createElement("tr", null,
             /* @__PURE__ */ React.createElement("th", { style: headS }, "보유·이용 기간"),
@@ -1087,7 +1087,9 @@ function PrivacyModal({ purpose, onOk, onCancel, inline }) {
       )
     ),
     /* @__PURE__ */ React.createElement("div", { style: { background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "11px 14px", fontSize: 12.5, color: "#92400e", marginBottom: 14, lineHeight: 1.75 } },
-      "※ 입주민 기본 명단은 관리사무소 등록 정보를 기준으로 확인하며, 플랫폼에는 이용자가 직접 동의하고 입력·작성한 정보만 저장됩니다.",
+      "※ 입력하신 동·호수·이름은 관리사무소에 등록된 입주자 정보와 대조하여 본인 확인에 사용됩니다.",
+      /* @__PURE__ */ React.createElement("br", null),
+      "※ 플랫폼에는 이용자가 직접 동의하고 입력·작성한 정보만 저장됩니다.",
       /* @__PURE__ */ React.createElement("br", null),
       "※ 공개 화면에서는 동·호수·이름이 마스킹 처리됩니다."
     ),
