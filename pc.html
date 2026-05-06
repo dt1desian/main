@@ -1,13 +1,14 @@
 
 
 
-
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>입주민 참여플랫폼</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -94,14 +95,41 @@ button:active{opacity:.82;}
 
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'; // ← 배포 후 웹앱 URL로 교체
+const APP_VERSION = '20260506_04';
+
+/* 최신 HTML/데이터 강제 로딩 */
+(function forceFreshVersion(){
+  try {
+    const url = new URL(window.location.href);
+    const currentVersion = url.searchParams.get('v');
+    const reloadedKey = 'forceReloaded_' + APP_VERSION;
+
+    if (currentVersion !== APP_VERSION && sessionStorage.getItem(reloadedKey) !== '1') {
+      sessionStorage.setItem(reloadedKey, '1');
+      url.searchParams.set('v', APP_VERSION);
+      window.location.replace(url.toString());
+      return;
+    }
+
+    localStorage.setItem('APP_VERSION', APP_VERSION);
+  } catch(e) {}
+})();
+
+/* iOS/Safari 뒤로가기 캐시 대응 */
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) window.location.reload();
+});
 
 /* GAS API 호출 헬퍼 */
 async function gasGet(action) {
-  const r = await fetch(GAS_URL + '?action=' + action);
+  const sep = GAS_URL.includes('?') ? '&' : '?';
+  const r = await fetch(GAS_URL + sep + 'action=' + encodeURIComponent(action) + '&v=' + encodeURIComponent(APP_VERSION) + '&_=' + Date.now(), { cache: 'no-store' });
   return r.json();
 }
 async function gasCall(body) {
-  const r = await fetch(GAS_URL + '?d=' + encodeURIComponent(JSON.stringify(body)));
+  const sep = GAS_URL.includes('?') ? '&' : '?';
+  const payload = Object.assign({}, body || {}, { clientVersion: APP_VERSION, requestAt: Date.now() });
+  const r = await fetch(GAS_URL + sep + 'd=' + encodeURIComponent(JSON.stringify(payload)) + '&v=' + encodeURIComponent(APP_VERSION) + '&_=' + Date.now(), { cache: 'no-store' });
   return r.json();
 }
 const CATS = ['주차','소음','청소\u00b7위생','시설관리','보안','관리비','기타'];
