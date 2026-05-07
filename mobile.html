@@ -95,7 +95,7 @@ button:active{opacity:.82;}
 
 <script>
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbwev3tdzdLAsb47rT-JGGJSk5YkIO5S49jekCEGTp9IRZuSmAcslr9MF6D28X6-eVQsVw/exec'; // ← 배포 후 웹앱 URL로 교체
-const APP_VERSION = '20260506_06';
+const APP_VERSION = '20260507_01';
 
 /* 최신 HTML/데이터 강제 로딩 */
 (function forceFreshVersion(){
@@ -1885,16 +1885,16 @@ function Footer({ onPolicy, isMobile, cfg, onAdminClick, showModeSelect, setShow
     },
     "\uCDE8\uC18C"
   ))), /* @__PURE__ */ React.createElement("footer", { style: { position: "relative", zIndex: 1, background: "#1f2937", marginTop: 48, marginBottom: 0, padding: 0 } }, /* @__PURE__ */ React.createElement("div", { style: {
-    maxWidth: 1100,
+    maxWidth: 1280,
     margin: "0 auto",
-    padding: isMobile ? "12px 14px" : "0 20px",
+    padding: isMobile ? "12px 14px" : "0 22px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 8,
+    gap: isMobile ? 8 : 14,
     minHeight: 52
-  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: isMobile ? 10 : 20, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { onClick: handleCIClick, style: { cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } }, /* @__PURE__ */ React.createElement("img", { src: "data:image/png;base64,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", height: "28", alt: "\uC790\uC5F0\uC564\uB370\uC2DC\uC559", style: { display: "block", mixBlendMode: "screen", opacity: 0.9 } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.55)", fontWeight: 500, whiteSpace: "nowrap" } }, (isMobile ? cfgMob(cfg, "footerAptName", cfg.footerAptName) : cfg.footerAptName) || "1\uB3D9\uD0C4 \uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8")), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.25)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.5)" } }, "\u{1F4CD} ", isMobile ? cfgMob(cfg, "footerAddr", cfg.footerAddr) : cfg.footerAddr), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.2)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement(
+  } }, /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", gap: isMobile ? 8 : 14, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement("div", { onClick: handleCIClick, style: { cursor: "pointer", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 } }, /* @__PURE__ */ React.createElement("img", { src: "data:image/png;base64,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", height: "28", alt: "\uC790\uC5F0\uC564\uB370\uC2DC\uC559", style: { display: "block", mixBlendMode: "screen", opacity: 0.9 } }), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.55)", fontWeight: 500, whiteSpace: "nowrap" } }, (isMobile ? cfgMob(cfg, "footerAptName", cfg.footerAptName) : cfg.footerAptName) || "1\uB3D9\uD0C4 \uC232\uC18D\uB9C8\uC744 \uC790\uC5F0\uC564\uB370\uC2DC\uC559\uC544\uD30C\uD2B8")), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.25)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.5)" } }, "\u{1F4CD} ", isMobile ? cfgMob(cfg, "footerAddr", cfg.footerAddr) : cfg.footerAddr), /* @__PURE__ */ React.createElement("span", { style: { color: "rgba(255,255,255,.2)", fontSize: 13, display: isMobile ? "none" : "inline" } }, "|"), /* @__PURE__ */ React.createElement(
     "a",
     {
       href: (isMobile ? cfgMob(cfg, "footerSite", cfg.footerSite) : cfg.footerSite) || "https://www.apti.co.kr/apti/",
@@ -1919,7 +1919,7 @@ function Footer({ onPolicy, isMobile, cfg, onAdminClick, showModeSelect, setShow
       }
     },
     "\u{1F4EC} \uAC74\uC758\uC0AC\uD56D"
-  )), /* @__PURE__ */ React.createElement(
+  )), /* @__PURE__ */ React.createElement("div", { style: { display: "flex", alignItems: "center", justifyContent: "flex-start", gap: isMobile ? 10 : 20, flexShrink: 0, flexWrap: "wrap" } }, /* @__PURE__ */ React.createElement(
     "button",
     {
       onClick: onPolicy,
@@ -1937,7 +1937,7 @@ function Footer({ onPolicy, isMobile, cfg, onAdminClick, showModeSelect, setShow
       }
     },
     "\uAC1C\uC778\uC815\uBCF4 \uCC98\uB9AC\uBC29\uCE68"
-  ))));
+  ), /* @__PURE__ */ React.createElement("span", { style: { fontSize: 12, color: "rgba(255,255,255,.45)", fontWeight: 500, whiteSpace: "nowrap" } }, "ⓒ2026 UK2 Solutions"))));
 }
 function PolicyModal({ onClose, cfg }) {
   const policyAptName = cfgText(cfg, "footerAptName", "1동탄 숲속마을 자연앤데시앙아파트");
